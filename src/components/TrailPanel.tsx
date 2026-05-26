@@ -61,7 +61,7 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
       if (!data || data.isRabbit) return;
       const nextStep = data.currentStep + 1;
 
-      if (nextStep > totalSteps) {
+      if (nextStep > totalSteps + 1) {
         setTrail((prev) => [...prev, target, "Кролик"]);
         fetchArticle("Кролик", nextStep);
       } else {

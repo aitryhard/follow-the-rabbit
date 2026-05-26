@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
 
       const progress = total > 0 ? step / total : 0;
       let proximitySvg = "singlepaw";
-      if (step === total) proximitySvg = "fullrabbit";
+      if (step > total) proximitySvg = "fullrabbit";
       else if (progress >= 0.85) proximitySvg = "noseprofile";
       else if (progress >= 0.65) proximitySvg = "ears";
       else if (progress >= 0.4) proximitySvg = "carrot";
