@@ -59,7 +59,8 @@ function shuffleWithSeed<T>(arr: T[], seed: string): T[] {
 export async function GET(request: NextRequest) {
   const title = request.nextUrl.searchParams.get("title");
   const step = parseInt(request.nextUrl.searchParams.get("step") || "0");
-  const total = parseInt(request.nextUrl.searchParams.get("total") || "0");
+  // total param received for cache-busting, not used in page rendering
+  void parseInt(request.nextUrl.searchParams.get("total") || "0");
   const seed = request.nextUrl.searchParams.get("seed") || "";
 
   if (!title) {
