@@ -1,5 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchArticleWithMarks } from "@/lib/wikipedia";
+
+const WIKI_BASE = "https://ru.wikipedia.org";
+
+function extractLinks(html: string): { fullMatch: string; target: string; text: string }[] {
+  const links: { fullMatch: string; target: string; text: string }[] = [];
+  const regex = /<a\s+(?:[^>]*?\s+)?href="\/wiki\/([^"#]+)[^"]*"(?:\s+[^>]*?)?\s*(?:title="([^"]*)")?[^>]*>([^<]+)<\/a>/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(html)) !== null) {
+    const target = decodeURIComponent(match[1].replace(/_/g, " "));
+    const text = match[3].trim();
+
+    if (
+      text.length < 2 ||
+      /^Special:/i.test(target) ||
+      /^Wikipedia:/i.test(target) ||
+      /^Help:/i.test(target) ||
+      /^File:/i.test(target) ||
+      /^Talk:/i.test(target) ||
+      /^Category:/i.test(target) ||
+      /^Template:/i.test(target) ||
+      /^Portal:/i.test(target) ||
+      /^User:/i.test(target) ||
+      target === "Main_Page" ||
+      target === "Заглавная_страница"
+    ) {
+      continue;
+    }
+
+    links.push({ fullMatch: match[0], target, text });
+  }
+
+  return links;
+}
+
+function seededRandom(seed: string): () => number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) {
+    h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
+  }
+  let s = h >>> 0;
+  return () => {
+    s = (s * 1664525 + 1013904223) | 0;
+    return (s >>> 0) / 4294967296;
+  };
+}
+
+function shuffleWithSeed<T>(arr: T[], seed: string): T[] {
+  const rand = seededRandom(seed);
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 export async function GET(request: NextRequest) {
   const title = request.nextUrl.searchParams.get("title");
@@ -12,78 +67,51 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const data = await fetchArticleWithMarks(title, step, total, seed);
+    const wikiRes = await fetch(
+      `${WIKI_BASE}/wiki/${encodeURIComponent(title)}`,
+      { headers: { "User-Agent": "FollowTheRabbit/1.0" } }
+    );
 
-    const html = `<!DOCTYPE html>
-<html class="client-nojs vector-feature-language-in-header-enabled vector-feature-language-in-main-page-header-disabled vector-feature-sticky-header-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-feature-main-menu-pinned-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-custom-font-size-clientpref-1 vector-feature-appearance-pinned-clientpref-1 vector-feature-night-mode-disabled skin-theme-clientpref-day vector-toc-not-available vector-animations-ready ve-available" lang="ru" dir="ltr">
-<head>
-<meta charset="UTF-8">
-<base href="https://ru.wikipedia.org/">
-${data.headHtml.replace(/<script[\s\S]*?<\/script>/gi, "")}
-<style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    background: #fff;
-  }
-  .rabbit-mark-wrap { display: inline; position: relative; }
-  .rabbit-mark-link {
-    color: #b45309 !important;
-    cursor: pointer !important;
-    border-bottom: 2px dashed rgba(217, 119, 6, 0.6) !important;
-    text-decoration: none !important;
-    background: rgba(255, 251, 235, 0.9) !important;
-    padding: 0 2px !important;
-    border-radius: 2px !important;
-    font-weight: 600 !important;
-  }
-  .rabbit-mark-link:hover {
-    background: #fef3c7 !important;
-    border-bottom-color: #d97706 !important;
-    color: #92400e !important;
-  }
-  .rabbit-mark-icon {
-    font-size: 0.85em;
-    margin-left: 1px;
-    opacity: 0.7;
-    display: inline-block;
-  }
-</style>
-</head>
-<body class="skin-vector skin-vector-search-vue mediawiki ltr sitedir-ltr mw-hide-empty-elt ns-0 ns-subject mw-editable page-${title.replace(/[^a-zA-Z0-9\u0400-\u04FF]/g, '_')} rootpage-${title.replace(/[^a-zA-Z0-9\u0400-\u04FF]/g, '_')} skin-vector-2022 action-view uls-dialog-sticky-hide">
-<div id="mw-page-base" class="noprint"></div>
-<div id="mw-head-base" class="noprint"></div>
-<div id="content" class="mw-body ve-init-mw-desktopArticleTarget-targetContainer" role="main">
-  <div id="bodyContent" class="vector-body">
-    <div id="mw-content-text" class="mw-body-content">
-      <div class="mw-content-ltr mw-parser-output" lang="ru" dir="ltr">
-        ${data.html}
-      </div>
-    </div>
-  </div>
-</div>
-<script>
-  document.addEventListener('click', function(e) {
-    var link = e.target.closest('.rabbit-mark-link');
-    if (link) {
-      e.preventDefault();
-      var target = link.getAttribute('data-rabbit-target');
-      if (target) {
-        window.parent.postMessage({ type: 'rabbit-hop', target: target }, '*');
+    if (!wikiRes.ok) {
+      return new NextResponse("Page not found", { status: 404 });
+    }
+
+    let html = await wikiRes.text();
+
+    const isRabbit =
+      title === "Rabbit" || title === "Кролик" || title === "Кролики";
+
+    if (!isRabbit) {
+      const links = extractLinks(html);
+      const perStepSeed = `${seed}-${step}`;
+      const shuffled = shuffleWithSeed(links, perStepSeed);
+      const selected = shuffled.slice(0, 1);
+
+      for (const link of selected) {
+        const replacement = `<a href="#" data-rabbit-target="${link.target.replace(/"/g, "&quot;")}" class="rabbit-mark-link" style="color:#b45309!important;cursor:pointer!important;border-bottom:2px dashed rgba(217,119,6,0.6)!important;text-decoration:none!important;background:rgba(255,251,235,0.9)!important;padding:0 2px!important;border-radius:2px!important;font-weight:600!important">${link.text}</a>`;
+        html = html.replace(link.fullMatch, replacement);
       }
-      return;
     }
-    var a = e.target.closest('a[href^="/wiki/"]');
-    if (a) {
-      e.preventDefault();
-      var href = a.getAttribute('href');
-      var pageTitle = href.replace('/wiki/', '').replace(/#.*$/, '');
-      window.parent.postMessage({ type: 'rabbit-hop', target: decodeURIComponent(pageTitle) }, '*');
-    }
-  });
-</script>
-</body>
-</html>`;
+
+    const scriptTag = `<script>
+document.addEventListener('click',function(e){
+  var link=e.target.closest('.rabbit-mark-link');
+  if(link){
+    e.preventDefault();
+    var t=link.getAttribute('data-rabbit-target');
+    if(t) window.parent.postMessage({type:'rabbit-hop',target:t},'*');
+    return;
+  }
+  var a=e.target.closest('a[href^="/wiki/"]');
+  if(a){
+    e.preventDefault();
+    var h=a.getAttribute('href').replace('/wiki/','').replace(/#.*$/,'');
+    window.parent.postMessage({type:'rabbit-hop',target:decodeURIComponent(h)},'*');
+  }
+});
+</script>`;
+
+    html = html.replace("</body>", `${scriptTag}</body>`);
 
     return new NextResponse(html, {
       headers: {
@@ -92,6 +120,6 @@ ${data.headHtml.replace(/<script[\s\S]*?<\/script>/gi, "")}
       },
     });
   } catch {
-    return new NextResponse("Article not found", { status: 404 });
+    return new NextResponse("Failed to load", { status: 500 });
   }
 }
