@@ -3,35 +3,54 @@ import { NextRequest, NextResponse } from "next/server";
 const WIKI_BASE = "https://ru.wikipedia.org";
 
 function extractLinks(html: string): { fullMatch: string; target: string; text: string }[] {
+  const nonContentStart = findNonContentStart(html);
   const links: { fullMatch: string; target: string; text: string }[] = [];
-  const regex = /<a\s+(?:[^>]*?\s+)?href="\/wiki\/([^"#]+)[^"]*"(?:\s+[^>]*?)?\s*(?:title="([^"]*)")?[^>]*>([^<]+)<\/a>/gi;
+  const regex = /<a\s+(?:[^>]*?\s+)?href="(?:\/\/[^"]*wikipedia\.org)?\/wiki\/([^"#]+)[^"]*"(?:\s+[^>]*?)?\s*(?:title="([^"]*)")?[^>]*>([^<]+)<\/a>/gi;
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(html)) !== null) {
+    if (nonContentStart > 0 && match.index >= nonContentStart) continue;
+
+    const fullMatch = match[0];
     const target = decodeURIComponent(match[1].replace(/_/g, " "));
     const text = match[3].trim();
 
+    const excluded = /^(Special|Wikipedia|Help|File|Talk|Category|Template|Portal|User|Служебная|Википедия|Справка|Файл|Обсуждение|Категория|Шаблон|Портал|Участник|Модуль|Module|MediaWiki|Media|Image):/i;
     if (
       text.length < 2 ||
-      /^Special:/i.test(target) ||
-      /^Wikipedia:/i.test(target) ||
-      /^Help:/i.test(target) ||
-      /^File:/i.test(target) ||
-      /^Talk:/i.test(target) ||
-      /^Category:/i.test(target) ||
-      /^Template:/i.test(target) ||
-      /^Portal:/i.test(target) ||
-      /^User:/i.test(target) ||
-      target === "Main_Page" ||
-      target === "Заглавная_страница"
+      excluded.test(target) ||
+      target === "Main Page" ||
+      target === "Заглавная страница"
     ) {
       continue;
     }
 
-    links.push({ fullMatch: match[0], target, text });
+    links.push({ fullMatch, target, text });
   }
 
   return links;
+}
+
+function findNonContentStart(html: string): number {
+  const contentAnchor = html.search(/id="mw-content-text"/i);
+  const searchFrom = contentAnchor >= 0 ? contentAnchor : 0;
+
+  const markers = [
+    /<div[^>]*\bclass="[^"]*catlinks[^"]*"[^>]*>/i,
+    /<div[^>]*\bclass="[^"]*navbox[^"]*"[^>]*>/i,
+    /<div[^>]*\bclass="[^"]*authority-control[^"]*"[^>]*>/i,
+    /<div[^>]*\bid="catlinks"[^>]*>/i,
+  ];
+  let earliest = html.length;
+  for (const m of markers) {
+    const slice = html.slice(searchFrom);
+    const match = slice.match(m);
+    if (match && match.index !== undefined) {
+      const idx = searchFrom + match.index;
+      if (idx < earliest) earliest = idx;
+    }
+  }
+  return earliest;
 }
 
 function seededRandom(seed: string): () => number {
@@ -59,13 +78,14 @@ function shuffleWithSeed<T>(arr: T[], seed: string): T[] {
 export async function GET(request: NextRequest) {
   const title = request.nextUrl.searchParams.get("title");
   const step = parseInt(request.nextUrl.searchParams.get("step") || "0");
-  // total param received for cache-busting, not used in page rendering
-  void parseInt(request.nextUrl.searchParams.get("total") || "0");
+  const total = parseInt(request.nextUrl.searchParams.get("total") || "0");
   const seed = request.nextUrl.searchParams.get("seed") || "";
 
   if (!title) {
     return new NextResponse("Missing title", { status: 400 });
   }
+
+  const origin = request.nextUrl.origin;
 
   try {
     const wikiRes = await fetch(
@@ -92,8 +112,21 @@ export async function GET(request: NextRequest) {
       const shuffled = shuffleWithSeed(links, perStepSeed);
       const selected = shuffled.slice(0, 1);
 
+      const progress = total > 0 ? step / total : 0;
+      let proximitySvg = "singlepaw";
+      if (step > total) proximitySvg = "fullrabbit";
+      else if (progress >= 0.85) proximitySvg = "noseprofile";
+      else if (progress >= 0.65) proximitySvg = "ears";
+      else if (progress >= 0.4) proximitySvg = "carrot";
+      else if (progress >= 0.2) proximitySvg = "pawspair";
+
+      const iconSize =
+        proximitySvg === "fullrabbit" ? "42px" :
+        proximitySvg === "pawspair" ? "48px" :
+        "32px";
+
       for (const link of selected) {
-        const replacement = `<a href="#" data-rabbit-target="${link.target.replace(/"/g, "&quot;")}" class="rabbit-mark-link" style="color:#b45309!important;cursor:pointer!important;border-bottom:2px dashed rgba(217,119,6,0.6)!important;text-decoration:none!important;background:rgba(255,251,235,0.9)!important;padding:0 2px!important;border-radius:2px!important;font-weight:600!important">${link.text}</a>`;
+        const replacement = `<a href="#" data-rabbit-target="${link.target.replace(/"/g, "&quot;")}" class="rabbit-mark-link" style="color:#ea580c!important;cursor:pointer!important;border-bottom:3px solid rgba(234,88,12,0.7)!important;text-decoration:none!important;background:rgba(255,237,213,0.95)!important;padding:1px 3px!important;border-radius:3px!important;font-weight:700!important;box-shadow:0 0 6px rgba(234,88,12,0.3)!important">${link.text}</a><img src="${origin}/${proximitySvg}.svg" alt="" style="display:inline-block;width:${iconSize};height:${iconSize};vertical-align:middle;margin-left:3px">`;
         html = html.replace(link.fullMatch, replacement);
       }
     }

@@ -2,25 +2,13 @@
 
 import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 
 interface SearchResult {
   title: string;
   snippet: string;
   pageid: number;
 }
-
-const RANDOM_STARTERS = [
-  "Квантовая механика",
-  "Древний Рим",
-  "Искусственный интеллект",
-  "The Beatles",
-  "Чёрная дыра",
-  "Возрождение",
-  "ДНК",
-  "Винсент ван Гог",
-  "Шахматы",
-  "Солнечная система",
-];
 
 let debounceTimer: ReturnType<typeof setTimeout>;
 
@@ -58,10 +46,12 @@ export default function SearchInput({ onStartTrail }: Props) {
     onStartTrail(title);
   };
 
-  const randomStart = () => {
-    const pick =
-      RANDOM_STARTERS[Math.floor(Math.random() * RANDOM_STARTERS.length)];
-    startTrail(pick);
+  const randomStart = async () => {
+    const res = await fetch("/api/random");
+    const data = await res.json();
+    if (data.title) {
+      startTrail(data.title);
+    }
   };
 
   return (
@@ -78,7 +68,14 @@ export default function SearchInput({ onStartTrail }: Props) {
           transition={{ delay: 0.1, duration: 1.2, ease: "easeOut" }}
           className="mb-8"
         >
-          <div className="text-8xl animate-float select-none">🐰</div>
+          <Image
+            src="/rabbitone.png"
+            alt="Rabbit"
+            width={200}
+            height={200}
+            className="animate-float select-none mx-auto"
+            priority
+          />
         </motion.div>
 
         <motion.h1
