@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ArticleData } from "@/types";
 import Breadcrumb from "./Breadcrumb";
@@ -13,35 +13,40 @@ interface Props {
 }
 
 export default function TrailPanel({ title: initialTitle, onClose }: Props) {
-  const [data, setData] = useState<ArticleData | null>(null);
+  const [rabbitMarks, setRabbitMarks] = useState<
+    { text: string; target: string }[]
+  >([]);
+  const [currentTitle, setCurrentTitle] = useState(initialTitle);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [trail, setTrail] = useState<string[]>([initialTitle]);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const [isRabbit, setIsRabbit] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [pageKey, setPageKey] = useState(0);
 
-  const totalSteps = useRef(
-    Math.floor(Math.random() * 26) + 5 // eslint-disable-line react-hooks/purity
-  ).current;
-  const seed = useRef(
-    Math.random().toString(36).slice(2, 10) // eslint-disable-line react-hooks/purity
-  ).current;
+  const [totalSteps] = useState(() => Math.floor(Math.random() * 26) + 5);
+  const [seed] = useState(() => Math.random().toString(36).slice(2, 10));
 
-  const fetchArticle = useCallback(
+  const fetchMarks = useCallback(
     async (title: string, step: number) => {
       setLoading(true);
       setError(null);
       try {
         const res = await fetch(
-          `/api/article?title=${encodeURIComponent(title)}&step=${step}&total=${totalSteps}&seed=${seed}`
+          `/api/article?title=${encodeURIComponent(
+            title
+          )}&step=${step}&total=${totalSteps}&seed=${seed}`
         );
         if (!res.ok) {
-          throw new Error(`Не удалось загрузить статью «${title}»`);
+          throw new Error(`Не удалось загрузить «${title}»`);
         }
-        const articleData: ArticleData = await res.json();
-        setData(articleData);
+        const data: ArticleData = await res.json();
+        setRabbitMarks(data.rabbitMarks);
+        setIsRabbit(data.isRabbit);
+        setCurrentStep(data.currentStep);
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Ошибка загрузки статьи"
+          err instanceof Error ? err.message : "Ошибка загрузки"
         );
       } finally {
         setLoading(false);
@@ -52,47 +57,30 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    fetchArticle(initialTitle, 1);
-  }, [initialTitle, fetchArticle]);
+    fetchMarks(initialTitle, 1);
+  }, [initialTitle, fetchMarks]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const handleRabbitClick = useCallback(
+  const navigateTo = useCallback(
     (target: string) => {
-      if (!data) return;
-      const nextStep = data.currentStep + 1;
+      if (isRabbit) return;
+
+      const nextStep = currentStep + 1;
 
       if (nextStep > totalSteps) {
         setTrail((prev) => [...prev, target, "Кролик"]);
-        fetchArticle("Rabbit", nextStep);
-      } else if (data.isRabbit) {
-        return;
+        setCurrentTitle("Rabbit");
+        setPageKey((k) => k + 1);
+        fetchMarks("Rabbit", nextStep);
       } else {
         setTrail((prev) => [...prev, target]);
-        fetchArticle(target, nextStep);
+        setCurrentTitle(target);
+        setPageKey((k) => k + 1);
+        fetchMarks(target, nextStep);
       }
     },
-    [data, totalSteps, fetchArticle]
+    [currentStep, totalSteps, isRabbit, fetchMarks]
   );
-
-  useEffect(() => {
-    const container = contentRef.current;
-    if (!container) return;
-
-    const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const link = target.closest(".rabbit-mark-link") as HTMLElement | null;
-      if (link) {
-        e.preventDefault();
-        const rabbitTarget = link.getAttribute("data-rabbit-target");
-        if (rabbitTarget) {
-          handleRabbitClick(rabbitTarget);
-        }
-      }
-    };
-
-    container.addEventListener("click", handler);
-    return () => container.removeEventListener("click", handler);
-  }, [handleRabbitClick]);
 
   return (
     <AnimatePresence>
@@ -109,41 +97,36 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
           onClick={(e) => e.stopPropagation()}
-          className="absolute inset-4 md:inset-8 bg-[#1a1816] border border-stone-800/60 rounded-2xl
+          className="absolute inset-4 md:inset-6 bg-[#1a1816] border border-stone-800/60 rounded-2xl
             shadow-2xl overflow-hidden flex flex-col"
         >
-          <div className="flex items-center justify-between px-6 py-4 border-b border-stone-800/50 shrink-0">
-            <div className="flex items-center gap-4 min-w-0">
-              {data && !data.isRabbit && (
-                <ProximityIndicator
-                  step={data.currentStep}
-                  total={data.totalSteps}
-                />
+          <div className="flex items-center justify-between px-5 py-3 border-b border-stone-800/50 shrink-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              {!isRabbit && (
+                <ProximityIndicator step={currentStep} total={totalSteps} />
               )}
-              {data?.isRabbit && (
-                <span className="text-2xl">🐰</span>
-              )}
-              <h2 className="text-stone-300 text-lg font-light truncate">
-                {data?.title || "Загрузка..."}
+              {isRabbit && <span className="text-2xl shrink-0">🐰</span>}
+              <h2 className="text-stone-300 text-base font-light truncate">
+                {currentTitle}
               </h2>
             </div>
             <button
               onClick={onClose}
-              className="text-stone-500 hover:text-stone-300 transition-colors text-xl leading-none px-2"
+              className="text-stone-500 hover:text-stone-300 transition-colors text-xl leading-none px-2 shrink-0"
             >
               ×
             </button>
           </div>
 
           {trail.length > 1 && (
-            <div className="px-6 py-2 border-b border-stone-800/30 overflow-x-auto shrink-0">
+            <div className="px-5 py-2 border-b border-stone-800/30 overflow-x-auto shrink-0">
               <Breadcrumb steps={trail} />
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto px-6 py-6">
-            {loading && !data && !error && (
-              <div className="flex items-center justify-center h-full">
+          <div className="flex-1 min-h-0 relative">
+            {loading && !error && (
+              <div className="absolute inset-0 flex items-center justify-center bg-[#1a1816] z-10">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-6 h-6 border-2 border-stone-600 border-t-amber-400/60 rounded-full animate-spin" />
                   <span className="text-stone-500 text-sm">
@@ -153,13 +136,11 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
               </div>
             )}
 
-            {error && !data && (
-              <div className="flex items-center justify-center h-full">
-                <div className="flex flex-col items-center gap-4 text-center">
+            {error && (
+              <div className="absolute inset-0 flex items-center justify-center bg-[#1a1816] z-10">
+                <div className="flex flex-col items-center gap-4 text-center px-6">
                   <span className="text-3xl">🐾</span>
-                  <p className="text-stone-400 text-sm max-w-xs">
-                    {error}
-                  </p>
+                  <p className="text-stone-400 text-sm">{error}</p>
                   <p className="text-stone-600 text-xs">
                     След потерян. Попробуйте другую тему.
                   </p>
@@ -167,58 +148,42 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
               </div>
             )}
 
-            {data && (
-              <motion.div
-                key={data.title + data.currentStep}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div
-                  ref={contentRef}
-                  className="prose prose-invert prose-stone max-w-none
-                    prose-headings:font-light prose-headings:text-stone-200
-                    prose-p:text-stone-400 prose-p:leading-relaxed
-                    prose-a:text-stone-400 prose-a:no-underline hover:prose-a:text-stone-300
-                    prose-strong:text-stone-300
-                    prose-li:text-stone-400
-                    [&_.rabbit-mark-wrap]:inline [&_.rabbit-mark-wrap]:relative
-                    [&_.rabbit-mark-link]:text-amber-200/80 [&_.rabbit-mark-link]:cursor-pointer
-                    [&_.rabbit-mark-link]:border-b [&_.rabbit-mark-link]:border-dashed
-                    [&_.rabbit-mark-link]:border-amber-700/40
-                    [&_.rabbit-mark-link]:transition-colors
-                    hover:[&_.rabbit-mark-link]:text-amber-200
-                    hover:[&_.rabbit-mark-link]:border-amber-400/60
-                    [&_.rabbit-mark-icon]:text-sm [&_.rabbit-mark-icon]:ml-0.5
-                    [&_.rabbit-mark-icon]:opacity-70
-                    [&_.rabbit-mark-icon]:inline-block
-                    [&_.mw-editsection]:hidden
-                    [&_.mw-empty-elt]:hidden
-                    [&_.hatnote]:text-stone-600 [&_.hatnote]:text-sm [&_.hatnote]:italic
-                    [&_.infobox]:hidden
-                    [&_.thumb]:my-6 [&_.thumb]:opacity-80
-                    [&_.thumbinner]:bg-stone-900/50 [&_.thumbinner]:border [&_.thumbinner]:border-stone-800
-                    [&_.thumbcaption]:text-stone-500 [&_.thumbcaption]:text-xs
-                    [&_img]:rounded-lg
-                    [&_table]:hidden
-                    [&_.toc]:hidden
-                    [&_.navbox]:hidden
-                    [&_.reflist]:text-xs [&_.reflist]:text-stone-600
-                    [&_.mw-editsection-like]:hidden"
-                  dangerouslySetInnerHTML={{ __html: data.html }}
-                />
-              </motion.div>
-            )}
-
-            {loading && data && (
-              <div className="flex justify-center py-8">
-                <div className="w-5 h-5 border-2 border-stone-600 border-t-amber-400/60 rounded-full animate-spin" />
-              </div>
-            )}
+            <iframe
+              key={pageKey}
+              src={`/api/page-proxy?title=${encodeURIComponent(currentTitle)}`}
+              className="w-full h-full border-0"
+              title={currentTitle}
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            />
           </div>
 
-          {data?.isRabbit && (
-            <div className="shrink-0 px-6 py-4 border-t border-stone-800/50 text-center">
+          {!isRabbit && rabbitMarks.length > 0 && !loading && (
+            <div className="shrink-0 border-t border-stone-800/50 px-5 py-3">
+              <p className="text-stone-600 text-xs mb-2 tracking-wide uppercase">
+                Кроличьи тропы
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {rabbitMarks.map((mark, i) => (
+                  <button
+                    key={i}
+                    onClick={() => navigateTo(mark.target)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
+                      bg-stone-800/50 border border-stone-700/40 text-stone-300 text-sm
+                      hover:bg-stone-700/50 hover:border-amber-700/40 hover:text-amber-200
+                      transition-colors group"
+                  >
+                    <span className="text-xs opacity-60 group-hover:opacity-100 transition-opacity">
+                      🐾
+                    </span>
+                    <span className="max-w-[180px] truncate">{mark.text}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isRabbit && !loading && (
+            <div className="shrink-0 px-5 py-4 border-t border-stone-800/50 text-center">
               <Confetti />
               <motion.p
                 initial={{ opacity: 0 }}
