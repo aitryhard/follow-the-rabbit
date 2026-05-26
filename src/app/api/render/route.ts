@@ -5,7 +5,7 @@ const WIKI_BASE = "https://ru.wikipedia.org";
 function extractLinks(html: string): { fullMatch: string; target: string; text: string }[] {
   const nonContentStart = findNonContentStart(html);
   const links: { fullMatch: string; target: string; text: string }[] = [];
-  const regex = /<a\s+(?:[^>]*?\s+)?href="\/wiki\/([^"#]+)[^"]*"(?:\s+[^>]*?)?\s*(?:title="([^"]*)")?[^>]*>([^<]+)<\/a>/gi;
+  const regex = /<a\s+(?:[^>]*?\s+)?href="(?:\/\/[^"]*wikipedia\.org)?\/wiki\/([^"#]+)[^"]*"(?:\s+[^>]*?)?\s*(?:title="([^"]*)")?[^>]*>([^<]+)<\/a>/gi;
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(html)) !== null) {
