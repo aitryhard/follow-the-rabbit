@@ -11,80 +11,12 @@ interface Props {
   onClose: () => void;
 }
 
-function buildIframeDoc(data: ArticleData): string {
-  return `<!DOCTYPE html>
-<html class="client-nojs vector-feature-language-in-header-enabled vector-feature-language-in-main-page-header-disabled vector-feature-sticky-header-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-feature-main-menu-pinned-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-custom-font-size-clientpref-1 vector-feature-appearance-pinned-clientpref-1 vector-feature-night-mode-disabled skin-theme-clientpref-day vector-toc-not-available vector-animations-ready ve-available" lang="ru" dir="ltr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<base href="https://ru.wikipedia.org/">
-${data.headHtml}
-<style>
-  .rabbit-mark-wrap { display: inline; position: relative; }
-  .rabbit-mark-link {
-    color: #b45309 !important;
-    cursor: pointer !important;
-    border-bottom: 2px dashed rgba(217, 119, 6, 0.6) !important;
-    text-decoration: none !important;
-    background: rgba(255, 251, 235, 0.9) !important;
-    padding: 0 2px !important;
-    border-radius: 2px !important;
-    font-weight: 600 !important;
-  }
-  .rabbit-mark-link:hover {
-    background: #fef3c7 !important;
-    border-bottom-color: #d97706 !important;
-    color: #92400e !important;
-  }
-  .rabbit-mark-icon {
-    font-size: 0.85em;
-    margin-left: 1px;
-    opacity: 0.7;
-    display: inline-block;
-  }
-</style>
-</head>
-<body class="skin-vector skin-vector-search-vue mediawiki ltr sitedir-ltr mw-hide-empty-elt ns-0 ns-subject mw-editable page-${encodeURIComponent(data.title)} rootpage-${encodeURIComponent(data.title)} skin-vector-2022 action-view uls-dialog-sticky-hide">
-<div id="mw-page-base" class="noprint"></div>
-<div id="mw-head-base" class="noprint"></div>
-<div id="content" class="mw-body ve-init-mw-desktopArticleTarget-targetContainer" role="main">
-  <div id="bodyContent" class="vector-body">
-    <div id="mw-content-text" class="mw-body-content">
-      <div class="mw-content-ltr mw-parser-output" lang="ru" dir="ltr">
-        ${data.html}
-      </div>
-    </div>
-  </div>
-</div>
-<script>
-  document.addEventListener('click', function(e) {
-    var link = e.target.closest('.rabbit-mark-link');
-    if (link) {
-      e.preventDefault();
-      var target = link.getAttribute('data-rabbit-target');
-      if (target) {
-        window.parent.postMessage({ type: 'rabbit-hop', target: target }, '*');
-      }
-    }
-  });
-  document.querySelectorAll('a[href^="/wiki/"]').forEach(function(a) {
-    a.addEventListener('click', function(e) {
-      e.preventDefault();
-      var title = a.getAttribute('href').replace('/wiki/', '').replace(/#.*$/, '');
-      window.parent.postMessage({ type: 'rabbit-hop', target: decodeURIComponent(title) }, '*');
-    });
-  });
-</script>
-</body>
-</html>`;
-}
-
 export default function TrailPanel({ title: initialTitle, onClose }: Props) {
   const [data, setData] = useState<ArticleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [trail, setTrail] = useState<string[]>([initialTitle]);
-  const [iframeKey, setIframeKey] = useState(0);
+  const [pageKey, setPageKey] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const [totalSteps] = useState(() => Math.floor(Math.random() * 26) + 5);
@@ -105,7 +37,7 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
         }
         const articleData: ArticleData = await res.json();
         setData(articleData);
-        setIframeKey((k) => k + 1);
+        setPageKey((k) => k + 1);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Ошибка загрузки"
@@ -148,6 +80,10 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
   }, [navigateTo]);
+
+  const iframeSrc =
+    data &&
+    `/api/render?title=${encodeURIComponent(data.title)}&step=${data.currentStep}&total=${data.totalSteps}&seed=${seed}`;
 
   return (
     <AnimatePresence>
@@ -212,9 +148,9 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
               </div>
             )}
 
-            {data && (
+            {iframeSrc && (
               <motion.div
-                key={iframeKey}
+                key={pageKey}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
@@ -222,10 +158,9 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
               >
                 <iframe
                   ref={iframeRef}
-                  srcDoc={buildIframeDoc(data)}
+                  src={iframeSrc}
                   className="w-full h-full border-0"
-                  title={data.title}
-                  sandbox="allow-scripts allow-same-origin"
+                  title={data?.title || ""}
                 />
               </motion.div>
             )}
