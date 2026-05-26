@@ -12,11 +12,6 @@ function extractLinks(html: string): { fullMatch: string; target: string; text: 
     if (nonContentStart > 0 && match.index >= nonContentStart) continue;
 
     const fullMatch = match[0];
-    const before = html.slice(Math.max(0, match.index - 100), match.index);
-    if (/<sup\b[^>]*>/.test(before) && before.lastIndexOf("<sup") > before.lastIndexOf("</sup")) {
-      continue;
-    }
-
     const target = decodeURIComponent(match[1].replace(/_/g, " "));
     const text = match[3].trim();
 
@@ -24,8 +19,8 @@ function extractLinks(html: string): { fullMatch: string; target: string; text: 
     if (
       text.length < 2 ||
       excluded.test(target) ||
-      target === "Main_Page" ||
-      target === "Заглавная_страница"
+      target === "Main Page" ||
+      target === "Заглавная страница"
     ) {
       continue;
     }
