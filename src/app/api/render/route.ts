@@ -2,39 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 
 const WIKI_BASE = "https://ru.wikipedia.org";
 
-function extractContentArea(html: string): string {
-  const startMatch = html.match(
-    /<div[^>]*class="[^"]*mw-parser-output[^"]*"[^>]*>/i
-  );
-  if (!startMatch || startMatch.index === undefined) return html;
-
-  const startIdx = startMatch.index;
-
-  const endPatterns = [
-    /<div[^>]*\bclass="[^"]*catlinks[^"]*"[^>]*>/i,
-    /<div[^>]*\bclass="[^"]*navbox[^"]*"[^>]*>/i,
-    /<div[^>]*\bclass="[^"]*authority-control[^"]*"[^>]*>/i,
-    /<div[^>]*\bid="catlinks"[^>]*>/i,
-  ];
-
-  let endIdx = html.length;
-  for (const pattern of endPatterns) {
-    const m = html.slice(startIdx).match(pattern);
-    if (m && m.index !== undefined && startIdx + m.index < endIdx) {
-      endIdx = startIdx + m.index;
-    }
-  }
-
-  return html.slice(startIdx, endIdx);
-}
-
 function extractLinks(html: string): { fullMatch: string; target: string; text: string }[] {
-  const content = extractContentArea(html);
+  const nonContentStart = findNonContentStart(html);
   const links: { fullMatch: string; target: string; text: string }[] = [];
   const regex = /<a\s+(?:[^>]*?\s+)?href="\/wiki\/([^"#]+)[^"]*"(?:\s+[^>]*?)?\s*(?:title="([^"]*)")?[^>]*>([^<]+)<\/a>/gi;
   let match: RegExpExecArray | null;
 
-  while ((match = regex.exec(content)) !== null) {
+  while ((match = regex.exec(html)) !== null) {
+    if (nonContentStart > 0 && match.index >= nonContentStart) continue;
+
     const target = decodeURIComponent(match[1].replace(/_/g, " "));
     const text = match[3].trim();
 
@@ -59,6 +35,21 @@ function extractLinks(html: string): { fullMatch: string; target: string; text: 
   }
 
   return links;
+}
+
+function findNonContentStart(html: string): number {
+  const markers = [
+    /<div[^>]*\bclass="[^"]*catlinks[^"]*"[^>]*>/i,
+    /<div[^>]*\bclass="[^"]*navbox[^"]*"[^>]*>/i,
+    /<div[^>]*\bclass="[^"]*authority-control[^"]*"[^>]*>/i,
+    /<div[^>]*\bid="catlinks"[^>]*>/i,
+  ];
+  let earliest = html.length;
+  for (const m of markers) {
+    const idx = html.search(m);
+    if (idx >= 0 && idx < earliest) earliest = idx;
+  }
+  return earliest;
 }
 
 function seededRandom(seed: string): () => number {
@@ -115,41 +106,7 @@ export async function GET(request: NextRequest) {
       title === "Rabbit" || title === "Кролик" || title === "Кролики";
 
     if (!isRabbit) {
-      const contentAnchor = html.search(/id="mw-content-text"/i);
-      const contentStart =
-        contentAnchor >= 0
-          ? contentAnchor
-          : html.search(
-              /<div[^>]*class="[^"]*mw-parser-output[^"]*"[^>]*>/i
-            );
-
-      const contentEndMarkers = [
-        /<div[^>]*\bclass="[^"]*catlinks[^"]*"[^>]*>/i,
-        /<div[^>]*\bclass="[^"]*navbox[^"]*"[^>]*>/i,
-        /<div[^>]*\bclass="[^"]*authority-control[^"]*"[^>]*>/i,
-        /<div[^>]*\bid="catlinks"[^>]*>/i,
-      ];
-
-      let contentEnd = html.length;
-      if (contentStart >= 0) {
-        for (const pattern of contentEndMarkers) {
-          const m = html.slice(contentStart).match(pattern);
-          if (
-            m &&
-            m.index !== undefined &&
-            contentStart + m.index < contentEnd
-          ) {
-            contentEnd = contentStart + m.index;
-          }
-        }
-      }
-
-      const contentHtml =
-        contentStart >= 0 ? html.slice(contentStart, contentEnd) : html;
-      const before = contentStart >= 0 ? html.slice(0, contentStart) : "";
-      const after = contentStart >= 0 ? html.slice(contentEnd) : "";
-
-      const links = extractLinks(contentHtml);
+      const links = extractLinks(html);
       const perStepSeed = `${seed}-${step}`;
       const shuffled = shuffleWithSeed(links, perStepSeed);
       const selected = shuffled.slice(0, 1);
@@ -167,13 +124,10 @@ export async function GET(request: NextRequest) {
         proximitySvg === "pawspair" ? "48px" :
         "32px";
 
-      let modifiedContent = contentHtml;
       for (const link of selected) {
-        const replacement = `<a href="#" data-rabbit-target="${link.target.replace(/"/g, "&quot;")}" class="rabbit-mark-link" style="color:#b45309!important;cursor:pointer!important;border-bottom:2px dashed rgba(217,119,6,0.6)!important;text-decoration:none!important;background:rgba(255,251,235,0.9)!important;padding:0 2px!important;border-radius:2px!important;font-weight:600!important">${link.text}</a><img src="${origin}/${proximitySvg}.svg" alt="" style="display:inline-block;width:${iconSize};height:${iconSize};vertical-align:middle;margin-left:2px;opacity:0.7">`;
-        modifiedContent = modifiedContent.replace(link.fullMatch, replacement);
+        const replacement = `<a href="#" data-rabbit-target="${link.target.replace(/"/g, "&quot;")}" class="rabbit-mark-link" style="color:#ea580c!important;cursor:pointer!important;border-bottom:3px solid rgba(234,88,12,0.7)!important;text-decoration:none!important;background:rgba(255,237,213,0.95)!important;padding:1px 3px!important;border-radius:3px!important;font-weight:700!important;box-shadow:0 0 6px rgba(234,88,12,0.3)!important">${link.text}</a><img src="${origin}/${proximitySvg}.svg" alt="" style="display:inline-block;width:${iconSize};height:${iconSize};vertical-align:middle;margin-left:3px">`;
+        html = html.replace(link.fullMatch, replacement);
       }
-
-      html = before + modifiedContent + after;
     }
 
     const scriptTag = `<script>
