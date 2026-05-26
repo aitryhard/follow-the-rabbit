@@ -120,7 +120,7 @@ export async function fetchArticleWithMarks(
 
   const url = `${WIKI_API}?action=parse&page=${encodeURIComponent(
     title
-  )}&prop=text&format=json&origin=*`;
+  )}&prop=text|headhtml&format=json&origin=*`;
 
   const res = await fetch(url);
   const data = await res.json();
@@ -129,6 +129,7 @@ export async function fetchArticleWithMarks(
     throw new Error(`Article not found: ${title}`);
   }
 
+  const headHtml: string = data.parse.headhtml?.["*"] || "";
   let html: string = data.parse.text["*"];
   const rabbitMarks: RabbitMark[] = [];
 
@@ -163,6 +164,7 @@ export async function fetchArticleWithMarks(
   return {
     title,
     html,
+    headHtml,
     rabbitMarks,
     isRabbit,
     currentStep: step,

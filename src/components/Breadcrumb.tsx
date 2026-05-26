@@ -20,14 +20,14 @@ export default function Breadcrumb({ steps }: Props) {
           <span
             className={
               i === steps.length - 1
-                ? "text-amber-200/80"
-                : "text-stone-500"
+                ? "text-amber-700 font-medium"
+                : "text-stone-400"
             }
           >
             {step}
           </span>
           {i < steps.length - 1 && (
-            <span className="text-stone-700">→</span>
+            <span className="text-stone-300">→</span>
           )}
         </span>
       ))}

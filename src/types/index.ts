@@ -12,6 +12,7 @@ export interface RabbitMark {
 export interface ArticleData {
   title: string;
   html: string;
+  headHtml: string;
   rabbitMarks: RabbitMark[];
   isRabbit: boolean;
   currentStep: number;
