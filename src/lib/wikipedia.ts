@@ -1,6 +1,6 @@
 import { ArticleData, RabbitMark } from "@/types";
 
-const WIKI_API = "https://en.wikipedia.org/w/api.php";
+const WIKI_API = "https://ru.wikipedia.org/w/api.php";
 
 const WIKI_LINK_RE =
   /<a\s+(?:[^>]*?\s+)?href="\/wiki\/([^"]+)"(?:\s+[^>]*?)?\s*(?:title="([^"]*)")?[^>]*>/g;
@@ -115,7 +115,8 @@ export async function fetchArticleWithMarks(
   totalSteps: number,
   seed: string
 ): Promise<ArticleData> {
-  const isRabbit = title === "Rabbit";
+  const isRabbit =
+    title === "Rabbit" || title === "Кролик" || title === "Кролики";
 
   const url = `${WIKI_API}?action=parse&page=${encodeURIComponent(
     title
@@ -137,7 +138,7 @@ export async function fetchArticleWithMarks(
     const perStepSeed = `${seed}-${step}`;
     const shuffled = shuffleWithSeed(links, perStepSeed);
 
-    const markCount = Math.min(6, Math.max(2, shuffled.length));
+    const markCount = 1;
     const selected = shuffled.slice(0, markCount);
     const proximityEmoji = getProximityEmoji(step, totalSteps);
 
@@ -157,7 +158,7 @@ export async function fetchArticleWithMarks(
     }
   }
 
-  html = html.replace(/<a\s+[^>]*href="\/wiki\//g, '<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/');
+  html = html.replace(/<a\s+[^>]*href="\/wiki\//g, '<a target="_blank" rel="noopener" href="https://ru.wikipedia.org/wiki/');
 
   return {
     title,

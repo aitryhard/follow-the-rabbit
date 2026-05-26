@@ -8,11 +8,11 @@ interface Props {
 }
 
 const STAGES = [
-  { emoji: "🐾", label: "A footprint..." },
-  { emoji: "🐾🐾", label: "More prints..." },
-  { emoji: "🥕", label: "A carrot?" },
-  { emoji: "🐇", label: "Getting closer..." },
-  { emoji: "🐰", label: "The rabbit is near!" },
+  { emoji: "🐾", label: "След..." },
+  { emoji: "🐾🐾", label: "Больше следов..." },
+  { emoji: "🥕", label: "Морковка?" },
+  { emoji: "🐇", label: "Всё ближе..." },
+  { emoji: "🐰", label: "Кролик рядом!" },
 ];
 
 function getStage(step: number, total: number) {
@@ -32,7 +32,7 @@ export default function ProximityIndicator({ step, total }: Props) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex items-center gap-3"
+      className="flex items-center gap-3 shrink-0"
     >
       <motion.span
         key={stage}

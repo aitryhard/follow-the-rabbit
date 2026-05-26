@@ -7,6 +7,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ results: [] });
   }
 
-  const results = await searchWikipedia(q);
-  return NextResponse.json({ results });
+  try {
+    const results = await searchWikipedia(q);
+    return NextResponse.json({ results });
+  } catch {
+    return NextResponse.json({ results: [] });
+  }
 }
