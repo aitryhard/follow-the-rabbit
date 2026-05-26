@@ -14,15 +14,15 @@ export default function Breadcrumb({ steps, onStepClick }: Props) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex items-center gap-2 flex-wrap text-sm"
+      className="flex items-center gap-1.5 flex-wrap text-[13px]"
     >
       {steps.map((step, i) => (
-        <span key={i} className="flex items-center gap-2">
+        <span key={i} className="flex items-center gap-1.5">
           <button
             onClick={() => onStepClick?.(i)}
             className={
               i === steps.length - 1
-                ? "text-amber-700 font-medium cursor-default"
+                ? "text-stone-700 font-medium cursor-default"
                 : "text-stone-400 hover:text-stone-600 transition-colors cursor-pointer"
             }
             disabled={i === steps.length - 1}
@@ -30,7 +30,7 @@ export default function Breadcrumb({ steps, onStepClick }: Props) {
             {step}
           </button>
           {i < steps.length - 1 && (
-            <span className="text-stone-300">→</span>
+            <span className="text-stone-300 select-none">→</span>
           )}
         </span>
       ))}

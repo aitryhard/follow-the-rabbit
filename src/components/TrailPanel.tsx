@@ -102,45 +102,50 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
+        className="fixed inset-0 z-40 bg-black/80 backdrop-blur-md"
         onClick={onClose}
       >
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          initial={{ opacity: 0, scale: 0.96, y: 24 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
+          exit={{ opacity: 0, scale: 0.96, y: 24 }}
+          transition={{ duration: 0.45, ease: [0.25, 0.1, 0.1, 1] }}
           onClick={(e) => e.stopPropagation()}
-          className="absolute inset-8 md:inset-16 lg:inset-24 bg-white border border-stone-300 rounded-2xl
-            shadow-2xl overflow-hidden flex flex-col"
+          className="absolute inset-6 md:inset-12 lg:inset-20 bg-white rounded-2xl
+            shadow-2xl shadow-black/30 overflow-hidden flex flex-col
+            ring-1 ring-black/5"
         >
-          <div className="flex items-center justify-between px-5 py-3 border-b border-stone-200 shrink-0 gap-3 bg-white">
+          <div className="flex items-center justify-between px-5 py-3.5
+            border-b border-stone-200/80 shrink-0 gap-3 bg-white">
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              {data?.isRabbit && <span className="text-2xl shrink-0">🐰</span>}
-              <h2 className="text-stone-800 text-base font-normal truncate">
+              {data?.isRabbit && (
+                <span className="text-xl shrink-0">🐰</span>
+              )}
+              <h2 className="text-stone-800 text-[15px] font-medium truncate tracking-tight">
                 {data?.title || "Загрузка..."}
               </h2>
             </div>
             <button
               onClick={onClose}
-              className="text-stone-400 hover:text-stone-600 transition-colors text-xl leading-none px-1 shrink-0"
+              className="text-stone-400 hover:text-stone-700 transition-colors
+                text-lg leading-none px-1.5 py-0.5 rounded-lg hover:bg-stone-100 shrink-0"
             >
               ×
             </button>
           </div>
 
           {trail.length > 1 && (
-            <div className="px-5 py-2 border-b border-stone-200 overflow-x-auto shrink-0 bg-stone-50">
+            <div className="px-5 py-2.5 border-b border-stone-100 overflow-x-auto shrink-0 bg-stone-50/80">
               <Breadcrumb steps={trail} onStepClick={goBackTo} />
             </div>
           )}
 
-          <div className="flex-1 min-h-0 relative bg-white">
+          <div className="flex-1 min-h-0 relative bg-stone-100">
             {loading && !data && (
               <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-6 h-6 border-2 border-stone-300 border-t-stone-600 rounded-full animate-spin" />
-                  <span className="text-stone-500 text-sm">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-8 h-8 border-2 border-stone-200 border-t-amber-700/40 rounded-full animate-spin" />
+                  <span className="text-stone-400 text-sm tracking-wide">
                     Идём по следу...
                   </span>
                 </div>
@@ -150,7 +155,7 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
             {error && (
               <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
                 <div className="flex flex-col items-center gap-4 text-center px-6">
-                  <span className="text-3xl">🐾</span>
+                  <span className="text-3xl opacity-50">🐾</span>
                   <p className="text-stone-500 text-sm">{error}</p>
                   <p className="text-stone-400 text-xs">
                     След потерян. Попробуйте другую тему.
@@ -164,7 +169,7 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
                 key={pageKey}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: 0.25 }}
                 className="w-full h-full"
               >
                 <iframe
@@ -177,27 +182,27 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
             )}
 
             {loading && data && (
-              <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
-                <div className="w-5 h-5 border-2 border-stone-300 border-t-stone-600 rounded-full animate-spin" />
+              <div className="absolute inset-0 flex items-center justify-center bg-white/90 z-10">
+                <div className="w-6 h-6 border-2 border-stone-200 border-t-amber-700/40 rounded-full animate-spin" />
               </div>
             )}
           </div>
 
           {data?.isRabbit && !loading && (
-            <div className="shrink-0 px-5 py-4 border-t border-stone-200 text-center bg-white">
+            <div className="shrink-0 px-5 py-5 border-t border-stone-200 text-center bg-white">
               <Confetti />
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="text-stone-600 text-base"
+                transition={{ delay: 0.4 }}
+                className="text-stone-700 text-base font-medium tracking-tight"
               >
-                Вы нашли Кролика.
+                Вы нашли Кролика
               </motion.p>
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.8 }}
+                transition={{ delay: 0.7 }}
                 className="text-stone-400 text-sm mt-1"
               >
                 {trail.length} прыжков через кроличью нору
