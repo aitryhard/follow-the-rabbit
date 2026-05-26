@@ -32,6 +32,9 @@ function extractLinks(html: string): { fullMatch: string; target: string; text: 
 }
 
 function findNonContentStart(html: string): number {
+  const contentAnchor = html.search(/id="mw-content-text"/i);
+  const searchFrom = contentAnchor >= 0 ? contentAnchor : 0;
+
   const markers = [
     /<div[^>]*\bclass="[^"]*catlinks[^"]*"[^>]*>/i,
     /<div[^>]*\bclass="[^"]*navbox[^"]*"[^>]*>/i,
@@ -40,8 +43,12 @@ function findNonContentStart(html: string): number {
   ];
   let earliest = html.length;
   for (const m of markers) {
-    const idx = html.search(m);
-    if (idx >= 0 && idx < earliest) earliest = idx;
+    const slice = html.slice(searchFrom);
+    const match = slice.match(m);
+    if (match && match.index !== undefined) {
+      const idx = searchFrom + match.index;
+      if (idx < earliest) earliest = idx;
+    }
   }
   return earliest;
 }
