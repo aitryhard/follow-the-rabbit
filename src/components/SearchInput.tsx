@@ -10,16 +10,16 @@ interface SearchResult {
 }
 
 const RANDOM_STARTERS = [
-  "Квантовая механика",
-  "Древний Рим",
-  "Искусственный интеллект",
+  "Quantum mechanics",
+  "Ancient Rome",
+  "Artificial intelligence",
   "The Beatles",
-  "Чёрная дыра",
-  "Возрождение",
-  "ДНК",
-  "Винсент ван Гог",
-  "Шахматы",
-  "Солнечная система",
+  "Black hole",
+  "Renaissance",
+  "DNA",
+  "Vincent van Gogh",
+  "Chess",
+  "Solar System",
 ];
 
 let debounceTimer: ReturnType<typeof setTimeout>;

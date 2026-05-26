@@ -15,6 +15,7 @@ interface Props {
 export default function TrailPanel({ title: initialTitle, onClose }: Props) {
   const [data, setData] = useState<ArticleData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [trail, setTrail] = useState<string[]>([initialTitle]);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -28,12 +29,23 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
   const fetchArticle = useCallback(
     async (title: string, step: number) => {
       setLoading(true);
-      const res = await fetch(
-        `/api/article?title=${encodeURIComponent(title)}&step=${step}&total=${totalSteps}&seed=${seed}`
-      );
-      const articleData: ArticleData = await res.json();
-      setData(articleData);
-      setLoading(false);
+      setError(null);
+      try {
+        const res = await fetch(
+          `/api/article?title=${encodeURIComponent(title)}&step=${step}&total=${totalSteps}&seed=${seed}`
+        );
+        if (!res.ok) {
+          throw new Error(`Не удалось загрузить статью «${title}»`);
+        }
+        const articleData: ArticleData = await res.json();
+        setData(articleData);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Ошибка загрузки статьи"
+        );
+      } finally {
+        setLoading(false);
+      }
     },
     [totalSteps, seed]
   );
@@ -130,13 +142,27 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
           )}
 
           <div className="flex-1 overflow-y-auto px-6 py-6">
-            {loading && !data && (
+            {loading && !data && !error && (
               <div className="flex items-center justify-center h-full">
                 <div className="flex flex-col items-center gap-3">
                   <div className="w-6 h-6 border-2 border-stone-600 border-t-amber-400/60 rounded-full animate-spin" />
                   <span className="text-stone-500 text-sm">
                     Идём по следу...
                   </span>
+                </div>
+              </div>
+            )}
+
+            {error && !data && (
+              <div className="flex items-center justify-center h-full">
+                <div className="flex flex-col items-center gap-4 text-center">
+                  <span className="text-3xl">🐾</span>
+                  <p className="text-stone-400 text-sm max-w-xs">
+                    {error}
+                  </p>
+                  <p className="text-stone-600 text-xs">
+                    След потерян. Попробуйте другую тему.
+                  </p>
                 </div>
               </div>
             )}
