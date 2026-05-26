@@ -93,12 +93,15 @@ export async function GET(request: NextRequest) {
 
       const progress = total > 0 ? step / total : 0;
       let proximitySvg = "singlepaw";
-      if (progress >= 0.75) proximitySvg = "noseprofile";
+      if (step === total) proximitySvg = "fullrabbit";
+      else if (progress >= 0.75) proximitySvg = "noseprofile";
       else if (progress >= 0.5) proximitySvg = "ears";
       else if (progress >= 0.25) proximitySvg = "pawspair";
 
+      const iconSize = proximitySvg === "fullrabbit" ? "28px" : "18px";
+
       for (const link of selected) {
-        const replacement = `<a href="#" data-rabbit-target="${link.target.replace(/"/g, "&quot;")}" class="rabbit-mark-link" style="color:#b45309!important;cursor:pointer!important;border-bottom:2px dashed rgba(217,119,6,0.6)!important;text-decoration:none!important;background:rgba(255,251,235,0.9)!important;padding:0 2px!important;border-radius:2px!important;font-weight:600!important">${link.text}</a><img src="/${proximitySvg}.svg" alt="" style="display:inline-block;width:18px;height:18px;vertical-align:middle;margin-left:2px;opacity:0.6">`;
+        const replacement = `<a href="#" data-rabbit-target="${link.target.replace(/"/g, "&quot;")}" class="rabbit-mark-link" style="color:#b45309!important;cursor:pointer!important;border-bottom:2px dashed rgba(217,119,6,0.6)!important;text-decoration:none!important;background:rgba(255,251,235,0.9)!important;padding:0 2px!important;border-radius:2px!important;font-weight:600!important">${link.text}</a><img src="/${proximitySvg}.svg" alt="" style="display:inline-block;width:${iconSize};height:${iconSize};vertical-align:middle;margin-left:2px;opacity:0.7">`;
         html = html.replace(link.fullMatch, replacement);
       }
     }
