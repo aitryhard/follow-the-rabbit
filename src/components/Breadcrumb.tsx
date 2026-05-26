@@ -4,30 +4,33 @@ import { motion } from "framer-motion";
 
 interface Props {
   steps: string[];
+  onStepClick?: (index: number) => void;
 }
 
-export default function Breadcrumb({ steps }: Props) {
+export default function Breadcrumb({ steps, onStepClick }: Props) {
   if (steps.length < 2) return null;
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex items-center gap-2 flex-wrap text-sm"
+      className="flex items-center gap-1.5 flex-wrap text-[13px]"
     >
       {steps.map((step, i) => (
-        <span key={i} className="flex items-center gap-2">
-          <span
+        <span key={i} className="flex items-center gap-1.5">
+          <button
+            onClick={() => onStepClick?.(i)}
             className={
               i === steps.length - 1
-                ? "text-amber-200/80"
-                : "text-stone-500"
+                ? "text-stone-700 font-medium cursor-default"
+                : "text-stone-400 hover:text-stone-600 transition-colors cursor-pointer"
             }
+            disabled={i === steps.length - 1}
           >
             {step}
-          </span>
+          </button>
           {i < steps.length - 1 && (
-            <span className="text-stone-700">→</span>
+            <span className="text-stone-300 select-none">→</span>
           )}
         </span>
       ))}

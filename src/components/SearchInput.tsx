@@ -59,7 +59,8 @@ export default function SearchInput({ onStartTrail }: Props) {
   };
 
   const randomStart = () => {
-    const pick = RANDOM_STARTERS[Math.floor(Math.random() * RANDOM_STARTERS.length)];
+    const pick =
+      RANDOM_STARTERS[Math.floor(Math.random() * RANDOM_STARTERS.length)];
     startTrail(pick);
   };
 
@@ -68,60 +69,86 @@ export default function SearchInput({ onStartTrail }: Props) {
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
-      className="w-full max-w-2xl mx-auto"
+      className="w-full max-w-xl mx-auto px-4"
     >
-      <div className="text-center mb-12">
+      <div className="text-center mb-16">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1, duration: 1.2, ease: "easeOut" }}
+          className="mb-8"
+        >
+          <div className="text-8xl animate-float select-none">🐰</div>
+        </motion.div>
+
         <motion.h1
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.2, duration: 1 }}
-          className="text-5xl md:text-7xl font-light tracking-wide text-stone-200 mb-4"
+          transition={{ delay: 0.3, duration: 1 }}
+          className="text-5xl md:text-6xl font-light tracking-[0.05em] text-[#e8e4dd] mb-4"
         >
-          Follow the Rabbit
+          Follow
+          <br />
+          the Rabbit
         </motion.h1>
+
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.6, duration: 1 }}
-          className="text-stone-500 text-lg tracking-wider"
+          transition={{ delay: 0.7, duration: 1 }}
+          className="text-[#6a6560] text-base tracking-[0.15em] uppercase font-light"
         >
           Всё в итоге ведёт к Кролику
         </motion.p>
       </div>
 
       <div className="relative">
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={(e) => handleQueryChange(e.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setTimeout(() => setFocused(false), 200)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && results.length > 0) {
-              startTrail(results[0].title);
-            }
-          }}
-          placeholder="Введите любую тему..."
-          className="w-full bg-stone-900/80 border border-stone-800 rounded-2xl px-6 py-5 text-stone-200 text-lg placeholder:text-stone-600 focus:outline-none focus:border-stone-600 transition-colors backdrop-blur-sm"
-        />
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.9, duration: 0.6 }}
+        >
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => handleQueryChange(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setTimeout(() => setFocused(false), 200)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && results.length > 0) {
+                startTrail(results[0].title);
+              }
+            }}
+            placeholder="Введите любую тему..."
+            className="w-full bg-[#14120e]/80 border border-[#2a2520] rounded-2xl px-6 py-4
+              text-[#e8e4dd] text-base placeholder:text-[#4a4540]
+              focus:outline-none focus:border-[#5a5040] focus:bg-[#1a1814]
+              transition-all duration-300 backdrop-blur-sm"
+          />
+        </motion.div>
 
         <AnimatePresence>
           {focused && results.length > 0 && (
             <motion.div
-              initial={{ opacity: 0, y: -8 }}
+              initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="absolute top-full mt-2 w-full bg-stone-900 border border-stone-800 rounded-xl overflow-hidden z-50 shadow-2xl"
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2 }}
+              className="absolute top-full mt-2 w-full bg-[#14120e] border border-[#2a2520] rounded-xl
+                overflow-hidden z-50 shadow-2xl shadow-black/40"
             >
               {results.map((r) => (
                 <button
                   key={r.pageid}
                   onClick={() => startTrail(r.title)}
-                  className="w-full text-left px-6 py-4 hover:bg-stone-800/60 transition-colors border-b border-stone-800/50 last:border-0"
+                  className="w-full text-left px-5 py-4 hover:bg-[#1e1c18] transition-colors
+                    border-b border-[#1e1c18] last:border-0"
                 >
-                  <div className="text-stone-200 font-medium">{r.title}</div>
-                  <div className="text-stone-500 text-sm mt-1 line-clamp-2">
+                  <div className="text-[#e8e4dd] text-sm font-medium">
+                    {r.title}
+                  </div>
+                  <div className="text-[#5a5550] text-xs mt-1 line-clamp-2 leading-relaxed">
                     {r.snippet}
                   </div>
                 </button>
@@ -131,8 +158,8 @@ export default function SearchInput({ onStartTrail }: Props) {
         </AnimatePresence>
 
         {loading && (
-          <div className="absolute right-6 top-1/2 -translate-y-1/2">
-            <div className="w-4 h-4 border-2 border-stone-600 border-t-stone-300 rounded-full animate-spin" />
+          <div className="absolute right-5 top-1/2 -translate-y-1/2">
+            <div className="w-4 h-4 border-2 border-[#3a3530] border-t-[#8a7050] rounded-full animate-spin" />
           </div>
         )}
       </div>
@@ -140,11 +167,12 @@ export default function SearchInput({ onStartTrail }: Props) {
       <motion.button
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 1, duration: 0.8 }}
+        transition={{ delay: 1.2, duration: 0.8 }}
         onClick={randomStart}
-        className="mt-6 mx-auto block text-stone-500 hover:text-stone-300 text-sm tracking-wider transition-colors"
+        className="mt-8 mx-auto block text-[#5a5550] hover:text-[#8a8070] text-sm
+          tracking-[0.1em] uppercase transition-colors duration-300"
       >
-        или начните случайное путешествие
+        или случайное путешествие
       </motion.button>
     </motion.div>
   );

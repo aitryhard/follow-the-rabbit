@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ArticleData } from "@/types";
 import Breadcrumb from "./Breadcrumb";
@@ -12,17 +12,12 @@ interface Props {
 }
 
 export default function TrailPanel({ title: initialTitle, onClose }: Props) {
-  const [rabbitMark, setRabbitMark] = useState<{
-    text: string;
-    target: string;
-  } | null>(null);
-  const [currentTitle, setCurrentTitle] = useState(initialTitle);
+  const [data, setData] = useState<ArticleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [trail, setTrail] = useState<string[]>([initialTitle]);
-  const [isRabbit, setIsRabbit] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1);
   const [pageKey, setPageKey] = useState(0);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const [totalSteps] = useState(() => Math.floor(Math.random() * 26) + 5);
   const [seed] = useState(() => Math.random().toString(36).slice(2, 10));
@@ -40,10 +35,9 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
         if (!res.ok) {
           throw new Error(`Не удалось загрузить «${title}»`);
         }
-        const data: ArticleData = await res.json();
-        setRabbitMark(data.rabbitMarks[0] || null);
-        setIsRabbit(data.isRabbit);
-        setCurrentStep(data.currentStep);
+        const articleData: ArticleData = await res.json();
+        setData(articleData);
+        setPageKey((k) => k + 1);
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Ошибка загрузки"
@@ -61,27 +55,46 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
   }, [initialTitle, fetchArticle]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const goNext = useCallback(() => {
-    if (!rabbitMark || isRabbit) return;
+  const navigateTo = useCallback(
+    (target: string) => {
+      if (!data || data.isRabbit) return;
+      const nextStep = data.currentStep + 1;
 
-    const nextStep = currentStep + 1;
+      if (nextStep > totalSteps) {
+        setTrail((prev) => [...prev, target, "Кролик"]);
+        fetchArticle("Кролик", nextStep);
+      } else {
+        setTrail((prev) => [...prev, target]);
+        fetchArticle(target, nextStep);
+      }
+    },
+    [data, totalSteps, fetchArticle]
+  );
 
-    if (nextStep > totalSteps) {
-      setTrail((prev) => [...prev, rabbitMark.text, "Кролик"]);
-      setCurrentTitle("Кролик");
-      setPageKey((k) => k + 1);
-      fetchArticle("Кролик", nextStep);
-    } else {
-      setTrail((prev) => [...prev, rabbitMark.text]);
-      setCurrentTitle(rabbitMark.target);
-      setPageKey((k) => k + 1);
-      fetchArticle(rabbitMark.target, nextStep);
-    }
-  }, [rabbitMark, currentStep, totalSteps, isRabbit, fetchArticle]);
+  const goBackTo = useCallback(
+    (index: number) => {
+      const targetTitle = trail[index];
+      if (!targetTitle || index === trail.length - 1) return;
+      const step = index + 1;
+      setTrail((prev) => prev.slice(0, index + 1));
+      fetchArticle(targetTitle, step);
+    },
+    [trail, fetchArticle]
+  );
 
-  const progress = totalSteps > 0 ? currentStep / totalSteps : 0;
-  const trailEmoji =
-    progress >= 0.9 ? "🐰" : progress >= 0.7 ? "🐇" : progress >= 0.4 ? "🥕" : "🐾";
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === "rabbit-hop" && e.data?.target) {
+        navigateTo(e.data.target);
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [navigateTo]);
+
+  const iframeSrc =
+    data &&
+    `/api/render?title=${encodeURIComponent(data.title)}&step=${data.currentStep}&total=${data.totalSteps}&seed=${seed}`;
 
   return (
     <AnimatePresence>
@@ -89,64 +102,50 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
+        className="fixed inset-0 z-40 bg-black/80 backdrop-blur-md"
         onClick={onClose}
       >
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          initial={{ opacity: 0, scale: 0.96, y: 24 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
+          exit={{ opacity: 0, scale: 0.96, y: 24 }}
+          transition={{ duration: 0.45, ease: [0.25, 0.1, 0.1, 1] }}
           onClick={(e) => e.stopPropagation()}
-          className="absolute inset-8 md:inset-16 lg:inset-24 bg-[#1a1816] border border-stone-800/60 rounded-2xl
-            shadow-2xl overflow-hidden flex flex-col"
+          className="absolute inset-6 md:inset-12 lg:inset-20 bg-white rounded-2xl
+            shadow-2xl shadow-black/30 overflow-hidden flex flex-col
+            ring-1 ring-black/5"
         >
-          <div className="flex items-center justify-between px-5 py-3 border-b border-stone-800/50 shrink-0 gap-3">
+          <div className="flex items-center justify-between px-5 py-3.5
+            border-b border-stone-200/80 shrink-0 gap-3 bg-white">
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              {isRabbit && <span className="text-2xl shrink-0">🐰</span>}
-              <h2 className="text-stone-300 text-base font-light truncate">
-                {currentTitle}
+              {data?.isRabbit && (
+                <span className="text-xl shrink-0">🐰</span>
+              )}
+              <h2 className="text-stone-800 text-[15px] font-medium truncate tracking-tight">
+                {data?.title || "Загрузка..."}
               </h2>
             </div>
-
-            <div className="flex items-center gap-3 shrink-0">
-              {!isRabbit && rabbitMark && !loading && (
-                <button
-                  onClick={goNext}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full
-                    bg-stone-800/50 border border-stone-700/40 text-stone-300 text-sm
-                    hover:bg-stone-700/50 hover:border-amber-700/40 hover:text-amber-200
-                    transition-colors group whitespace-nowrap"
-                >
-                  <span className="text-xs opacity-60 group-hover:opacity-100 transition-opacity">
-                    {trailEmoji}
-                  </span>
-                  <span className="max-w-[160px] truncate">
-                    {rabbitMark.text}
-                  </span>
-                </button>
-              )}
-              <button
-                onClick={onClose}
-                className="text-stone-500 hover:text-stone-300 transition-colors text-xl leading-none px-1"
-              >
-                ×
-              </button>
-            </div>
+            <button
+              onClick={onClose}
+              className="text-stone-400 hover:text-stone-700 transition-colors
+                text-lg leading-none px-1.5 py-0.5 rounded-lg hover:bg-stone-100 shrink-0"
+            >
+              ×
+            </button>
           </div>
 
           {trail.length > 1 && (
-            <div className="px-5 py-2 border-b border-stone-800/30 overflow-x-auto shrink-0">
-              <Breadcrumb steps={trail} />
+            <div className="px-5 py-2.5 border-b border-stone-100 overflow-x-auto shrink-0 bg-stone-50/80">
+              <Breadcrumb steps={trail} onStepClick={goBackTo} />
             </div>
           )}
 
-          <div className="flex-1 min-h-0 relative">
-            {loading && !error && (
-              <div className="absolute inset-0 flex items-center justify-center bg-[#1a1816] z-10">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-6 h-6 border-2 border-stone-600 border-t-amber-400/60 rounded-full animate-spin" />
-                  <span className="text-stone-500 text-sm">
+          <div className="flex-1 min-h-0 relative bg-stone-100">
+            {loading && !data && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-8 h-8 border-2 border-stone-200 border-t-amber-700/40 rounded-full animate-spin" />
+                  <span className="text-stone-400 text-sm tracking-wide">
                     Идём по следу...
                   </span>
                 </div>
@@ -154,42 +153,57 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
             )}
 
             {error && (
-              <div className="absolute inset-0 flex items-center justify-center bg-[#1a1816] z-10">
+              <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
                 <div className="flex flex-col items-center gap-4 text-center px-6">
-                  <span className="text-3xl">🐾</span>
-                  <p className="text-stone-400 text-sm">{error}</p>
-                  <p className="text-stone-600 text-xs">
+                  <span className="text-3xl opacity-50">🐾</span>
+                  <p className="text-stone-500 text-sm">{error}</p>
+                  <p className="text-stone-400 text-xs">
                     След потерян. Попробуйте другую тему.
                   </p>
                 </div>
               </div>
             )}
 
-            <iframe
-              key={pageKey}
-              src={`/api/page-proxy?title=${encodeURIComponent(currentTitle)}`}
-              className="w-full h-full border-0"
-              title={currentTitle}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-            />
+            {iframeSrc && (
+              <motion.div
+                key={pageKey}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.25 }}
+                className="w-full h-full"
+              >
+                <iframe
+                  ref={iframeRef}
+                  src={iframeSrc}
+                  className="w-full h-full border-0"
+                  title={data?.title || ""}
+                />
+              </motion.div>
+            )}
+
+            {loading && data && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/90 z-10">
+                <div className="w-6 h-6 border-2 border-stone-200 border-t-amber-700/40 rounded-full animate-spin" />
+              </div>
+            )}
           </div>
 
-          {isRabbit && !loading && (
-            <div className="shrink-0 px-5 py-4 border-t border-stone-800/50 text-center">
+          {data?.isRabbit && !loading && (
+            <div className="shrink-0 px-5 py-5 border-t border-stone-200 text-center bg-white">
               <Confetti />
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="text-stone-400 text-base"
+                transition={{ delay: 0.4 }}
+                className="text-stone-700 text-base font-medium tracking-tight"
               >
-                Вы нашли Кролика.
+                Вы нашли Кролика
               </motion.p>
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.8 }}
-                className="text-stone-600 text-sm mt-1"
+                transition={{ delay: 0.7 }}
+                className="text-stone-400 text-sm mt-1"
               >
                 {trail.length} прыжков через кроличью нору
               </motion.p>
