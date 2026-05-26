@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface SearchResult {
@@ -11,27 +10,30 @@ interface SearchResult {
 }
 
 const RANDOM_STARTERS = [
-  "Quantum mechanics",
-  "Ancient Rome",
-  "Artificial intelligence",
+  "Квантовая механика",
+  "Древний Рим",
+  "Искусственный интеллект",
   "The Beatles",
-  "Black hole",
-  "Renaissance",
-  "DNA",
-  "Vincent van Gogh",
-  "Chess",
-  "Solar System",
+  "Чёрная дыра",
+  "Возрождение",
+  "ДНК",
+  "Винсент ван Гог",
+  "Шахматы",
+  "Солнечная система",
 ];
 
 let debounceTimer: ReturnType<typeof setTimeout>;
 
-export default function SearchInput() {
+interface Props {
+  onStartTrail: (title: string) => void;
+}
+
+export default function SearchInput({ onStartTrail }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
 
   const handleQueryChange = useCallback((value: string) => {
     setQuery(value);
@@ -53,11 +55,7 @@ export default function SearchInput() {
   }, []);
 
   const startTrail = (title: string) => {
-    const totalSteps = Math.floor(Math.random() * 26) + 5;
-    const seed = Math.random().toString(36).slice(2, 10);
-    router.push(
-      `/?title=${encodeURIComponent(title)}&step=1&total=${totalSteps}&seed=${seed}`
-    );
+    onStartTrail(title);
   };
 
   const randomStart = () => {
@@ -87,7 +85,7 @@ export default function SearchInput() {
           transition={{ delay: 0.6, duration: 1 }}
           className="text-stone-500 text-lg tracking-wider"
         >
-          Everything eventually leads to Rabbit
+          Всё в итоге ведёт к Кролику
         </motion.p>
       </div>
 
@@ -104,7 +102,7 @@ export default function SearchInput() {
               startTrail(results[0].title);
             }
           }}
-          placeholder="Enter any topic..."
+          placeholder="Введите любую тему..."
           className="w-full bg-stone-900/80 border border-stone-800 rounded-2xl px-6 py-5 text-stone-200 text-lg placeholder:text-stone-600 focus:outline-none focus:border-stone-600 transition-colors backdrop-blur-sm"
         />
 
@@ -146,7 +144,7 @@ export default function SearchInput() {
         onClick={randomStart}
         className="mt-6 mx-auto block text-stone-500 hover:text-stone-300 text-sm tracking-wider transition-colors"
       >
-        or follow a random trail
+        или начните случайное путешествие
       </motion.button>
     </motion.div>
   );
