@@ -11,27 +11,26 @@ function extractLinks(html: string): { fullMatch: string; target: string; text: 
   while ((match = regex.exec(html)) !== null) {
     if (nonContentStart > 0 && match.index >= nonContentStart) continue;
 
+    const fullMatch = match[0];
+    const before = html.slice(Math.max(0, match.index - 100), match.index);
+    if (/<sup\b[^>]*>/.test(before) && before.lastIndexOf("<sup") > before.lastIndexOf("</sup")) {
+      continue;
+    }
+
     const target = decodeURIComponent(match[1].replace(/_/g, " "));
     const text = match[3].trim();
 
+    const excluded = /^(Special|Wikipedia|Help|File|Talk|Category|Template|Portal|User|Служебная|Википедия|Справка|Файл|Обсуждение|Категория|Шаблон|Портал|Участник|Модуль|Module|MediaWiki|Media|Image):/i;
     if (
       text.length < 2 ||
-      /^Special:/i.test(target) ||
-      /^Wikipedia:/i.test(target) ||
-      /^Help:/i.test(target) ||
-      /^File:/i.test(target) ||
-      /^Talk:/i.test(target) ||
-      /^Category:/i.test(target) ||
-      /^Template:/i.test(target) ||
-      /^Portal:/i.test(target) ||
-      /^User:/i.test(target) ||
+      excluded.test(target) ||
       target === "Main_Page" ||
       target === "Заглавная_страница"
     ) {
       continue;
     }
 
-    links.push({ fullMatch: match[0], target, text });
+    links.push({ fullMatch, target, text });
   }
 
   return links;
