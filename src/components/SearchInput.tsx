@@ -71,8 +71,8 @@ export default function SearchInput({ onStartTrail }: Props) {
           <Image
             src="/rabbitone.png"
             alt="Rabbit"
-            width={140}
-            height={140}
+            width={200}
+            height={200}
             className="animate-float select-none mx-auto"
             priority
           />

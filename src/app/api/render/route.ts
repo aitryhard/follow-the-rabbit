@@ -115,9 +115,14 @@ export async function GET(request: NextRequest) {
       title === "Rabbit" || title === "Кролик" || title === "Кролики";
 
     if (!isRabbit) {
-      const contentStart = html.search(
-        /<div[^>]*class="[^"]*mw-parser-output[^"]*"[^>]*>/i
-      );
+      const contentAnchor = html.search(/id="mw-content-text"/i);
+      const contentStart =
+        contentAnchor >= 0
+          ? contentAnchor
+          : html.search(
+              /<div[^>]*class="[^"]*mw-parser-output[^"]*"[^>]*>/i
+            );
+
       const contentEndMarkers = [
         /<div[^>]*\bclass="[^"]*catlinks[^"]*"[^>]*>/i,
         /<div[^>]*\bclass="[^"]*navbox[^"]*"[^>]*>/i,
@@ -129,16 +134,18 @@ export async function GET(request: NextRequest) {
       if (contentStart >= 0) {
         for (const pattern of contentEndMarkers) {
           const m = html.slice(contentStart).match(pattern);
-          if (m && m.index !== undefined && contentStart + m.index < contentEnd) {
+          if (
+            m &&
+            m.index !== undefined &&
+            contentStart + m.index < contentEnd
+          ) {
             contentEnd = contentStart + m.index;
           }
         }
       }
 
       const contentHtml =
-        contentStart >= 0
-          ? html.slice(contentStart, contentEnd)
-          : html;
+        contentStart >= 0 ? html.slice(contentStart, contentEnd) : html;
       const before = contentStart >= 0 ? html.slice(0, contentStart) : "";
       const after = contentStart >= 0 ? html.slice(contentEnd) : "";
 
@@ -156,9 +163,9 @@ export async function GET(request: NextRequest) {
       else if (progress >= 0.2) proximitySvg = "pawspair";
 
       const iconSize =
-        proximitySvg === "fullrabbit" ? "28px" :
-        proximitySvg === "pawspair" ? "32px" :
-        "20px";
+        proximitySvg === "fullrabbit" ? "42px" :
+        proximitySvg === "pawspair" ? "48px" :
+        "32px";
 
       let modifiedContent = contentHtml;
       for (const link of selected) {
