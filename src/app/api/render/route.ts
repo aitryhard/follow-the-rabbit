@@ -66,6 +66,8 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Missing title", { status: 400 });
   }
 
+  const origin = request.nextUrl.origin;
+
   try {
     const wikiRes = await fetch(
       `${WIKI_BASE}/wiki/${encodeURIComponent(title)}`,
@@ -105,7 +107,7 @@ export async function GET(request: NextRequest) {
         "20px";
 
       for (const link of selected) {
-        const replacement = `<a href="#" data-rabbit-target="${link.target.replace(/"/g, "&quot;")}" class="rabbit-mark-link" style="color:#b45309!important;cursor:pointer!important;border-bottom:2px dashed rgba(217,119,6,0.6)!important;text-decoration:none!important;background:rgba(255,251,235,0.9)!important;padding:0 2px!important;border-radius:2px!important;font-weight:600!important">${link.text}</a><img src="/${proximitySvg}.svg" alt="" style="display:inline-block;width:${iconSize};height:${iconSize};vertical-align:middle;margin-left:2px;opacity:0.7">`;
+        const replacement = `<a href="#" data-rabbit-target="${link.target.replace(/"/g, "&quot;")}" class="rabbit-mark-link" style="color:#b45309!important;cursor:pointer!important;border-bottom:2px dashed rgba(217,119,6,0.6)!important;text-decoration:none!important;background:rgba(255,251,235,0.9)!important;padding:0 2px!important;border-radius:2px!important;font-weight:600!important">${link.text}</a><img src="${origin}/${proximitySvg}.svg" alt="" style="display:inline-block;width:${iconSize};height:${iconSize};vertical-align:middle;margin-left:2px;opacity:0.7">`;
         html = html.replace(link.fullMatch, replacement);
       }
     }
