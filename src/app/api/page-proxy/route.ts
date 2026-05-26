@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const wikiRes = await fetch(
-      `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`,
+      `https://ru.wikipedia.org/wiki/${encodeURIComponent(title)}`,
       {
         headers: {
           "User-Agent": "FollowTheRabbit/1.0 (educational-project)",
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     html = html.replace(
       "<head>",
-      '<head><base href="https://en.wikipedia.org/">'
+      '<head><base href="https://ru.wikipedia.org/">'
     );
 
     return new NextResponse(html, {

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ArticleData } from "@/types";
 import Breadcrumb from "./Breadcrumb";
-import ProximityIndicator from "./ProximityIndicator";
 import Confetti from "./Confetti";
 
 interface Props {
@@ -13,9 +12,10 @@ interface Props {
 }
 
 export default function TrailPanel({ title: initialTitle, onClose }: Props) {
-  const [rabbitMarks, setRabbitMarks] = useState<
-    { text: string; target: string }[]
-  >([]);
+  const [rabbitMark, setRabbitMark] = useState<{
+    text: string;
+    target: string;
+  } | null>(null);
   const [currentTitle, setCurrentTitle] = useState(initialTitle);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
   const [totalSteps] = useState(() => Math.floor(Math.random() * 26) + 5);
   const [seed] = useState(() => Math.random().toString(36).slice(2, 10));
 
-  const fetchMarks = useCallback(
+  const fetchArticle = useCallback(
     async (title: string, step: number) => {
       setLoading(true);
       setError(null);
@@ -41,7 +41,7 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
           throw new Error(`Не удалось загрузить «${title}»`);
         }
         const data: ArticleData = await res.json();
-        setRabbitMarks(data.rabbitMarks);
+        setRabbitMark(data.rabbitMarks[0] || null);
         setIsRabbit(data.isRabbit);
         setCurrentStep(data.currentStep);
       } catch (err) {
@@ -57,30 +57,31 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    fetchMarks(initialTitle, 1);
-  }, [initialTitle, fetchMarks]);
+    fetchArticle(initialTitle, 1);
+  }, [initialTitle, fetchArticle]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const navigateTo = useCallback(
-    (target: string) => {
-      if (isRabbit) return;
+  const goNext = useCallback(() => {
+    if (!rabbitMark || isRabbit) return;
 
-      const nextStep = currentStep + 1;
+    const nextStep = currentStep + 1;
 
-      if (nextStep > totalSteps) {
-        setTrail((prev) => [...prev, target, "Кролик"]);
-        setCurrentTitle("Rabbit");
-        setPageKey((k) => k + 1);
-        fetchMarks("Rabbit", nextStep);
-      } else {
-        setTrail((prev) => [...prev, target]);
-        setCurrentTitle(target);
-        setPageKey((k) => k + 1);
-        fetchMarks(target, nextStep);
-      }
-    },
-    [currentStep, totalSteps, isRabbit, fetchMarks]
-  );
+    if (nextStep > totalSteps) {
+      setTrail((prev) => [...prev, rabbitMark.text, "Кролик"]);
+      setCurrentTitle("Кролик");
+      setPageKey((k) => k + 1);
+      fetchArticle("Кролик", nextStep);
+    } else {
+      setTrail((prev) => [...prev, rabbitMark.text]);
+      setCurrentTitle(rabbitMark.target);
+      setPageKey((k) => k + 1);
+      fetchArticle(rabbitMark.target, nextStep);
+    }
+  }, [rabbitMark, currentStep, totalSteps, isRabbit, fetchArticle]);
+
+  const progress = totalSteps > 0 ? currentStep / totalSteps : 0;
+  const trailEmoji =
+    progress >= 0.9 ? "🐰" : progress >= 0.7 ? "🐇" : progress >= 0.4 ? "🥕" : "🐾";
 
   return (
     <AnimatePresence>
@@ -97,25 +98,41 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
           onClick={(e) => e.stopPropagation()}
-          className="absolute inset-4 md:inset-6 bg-[#1a1816] border border-stone-800/60 rounded-2xl
+          className="absolute inset-8 md:inset-16 lg:inset-24 bg-[#1a1816] border border-stone-800/60 rounded-2xl
             shadow-2xl overflow-hidden flex flex-col"
         >
-          <div className="flex items-center justify-between px-5 py-3 border-b border-stone-800/50 shrink-0">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-stone-800/50 shrink-0 gap-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
-              {!isRabbit && (
-                <ProximityIndicator step={currentStep} total={totalSteps} />
-              )}
               {isRabbit && <span className="text-2xl shrink-0">🐰</span>}
               <h2 className="text-stone-300 text-base font-light truncate">
                 {currentTitle}
               </h2>
             </div>
-            <button
-              onClick={onClose}
-              className="text-stone-500 hover:text-stone-300 transition-colors text-xl leading-none px-2 shrink-0"
-            >
-              ×
-            </button>
+
+            <div className="flex items-center gap-3 shrink-0">
+              {!isRabbit && rabbitMark && !loading && (
+                <button
+                  onClick={goNext}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full
+                    bg-stone-800/50 border border-stone-700/40 text-stone-300 text-sm
+                    hover:bg-stone-700/50 hover:border-amber-700/40 hover:text-amber-200
+                    transition-colors group whitespace-nowrap"
+                >
+                  <span className="text-xs opacity-60 group-hover:opacity-100 transition-opacity">
+                    {trailEmoji}
+                  </span>
+                  <span className="max-w-[160px] truncate">
+                    {rabbitMark.text}
+                  </span>
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="text-stone-500 hover:text-stone-300 transition-colors text-xl leading-none px-1"
+              >
+                ×
+              </button>
+            </div>
           </div>
 
           {trail.length > 1 && (
@@ -156,31 +173,6 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             />
           </div>
-
-          {!isRabbit && rabbitMarks.length > 0 && !loading && (
-            <div className="shrink-0 border-t border-stone-800/50 px-5 py-3">
-              <p className="text-stone-600 text-xs mb-2 tracking-wide uppercase">
-                Кроличьи тропы
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {rabbitMarks.map((mark, i) => (
-                  <button
-                    key={i}
-                    onClick={() => navigateTo(mark.target)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
-                      bg-stone-800/50 border border-stone-700/40 text-stone-300 text-sm
-                      hover:bg-stone-700/50 hover:border-amber-700/40 hover:text-amber-200
-                      transition-colors group"
-                  >
-                    <span className="text-xs opacity-60 group-hover:opacity-100 transition-opacity">
-                      🐾
-                    </span>
-                    <span className="max-w-[180px] truncate">{mark.text}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {isRabbit && !loading && (
             <div className="shrink-0 px-5 py-4 border-t border-stone-800/50 text-center">
