@@ -71,6 +71,17 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
     [data, totalSteps, fetchArticle]
   );
 
+  const goBackTo = useCallback(
+    (index: number) => {
+      const targetTitle = trail[index];
+      if (!targetTitle || index === trail.length - 1) return;
+      const step = index + 1;
+      setTrail((prev) => prev.slice(0, index + 1));
+      fetchArticle(targetTitle, step);
+    },
+    [trail, fetchArticle]
+  );
+
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (e.data?.type === "rabbit-hop" && e.data?.target) {
@@ -120,7 +131,7 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
 
           {trail.length > 1 && (
             <div className="px-5 py-2 border-b border-stone-200 overflow-x-auto shrink-0 bg-stone-50">
-              <Breadcrumb steps={trail} />
+              <Breadcrumb steps={trail} onStepClick={goBackTo} />
             </div>
           )}
 
