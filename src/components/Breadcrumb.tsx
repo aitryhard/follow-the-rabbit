@@ -1,0 +1,36 @@
+"use client";
+
+import { motion } from "framer-motion";
+
+interface Props {
+  steps: string[];
+}
+
+export default function Breadcrumb({ steps }: Props) {
+  if (steps.length < 2) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex items-center gap-2 flex-wrap text-sm"
+    >
+      {steps.map((step, i) => (
+        <span key={i} className="flex items-center gap-2">
+          <span
+            className={
+              i === steps.length - 1
+                ? "text-amber-200/80"
+                : "text-stone-500"
+            }
+          >
+            {step}
+          </span>
+          {i < steps.length - 1 && (
+            <span className="text-stone-700">→</span>
+          )}
+        </span>
+      ))}
+    </motion.div>
+  );
+}
