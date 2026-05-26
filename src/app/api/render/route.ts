@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
 <html class="client-nojs vector-feature-language-in-header-enabled vector-feature-language-in-main-page-header-disabled vector-feature-sticky-header-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-feature-main-menu-pinned-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-custom-font-size-clientpref-1 vector-feature-appearance-pinned-clientpref-1 vector-feature-night-mode-disabled skin-theme-clientpref-day vector-toc-not-available vector-animations-ready ve-available" lang="ru" dir="ltr">
 <head>
 <meta charset="UTF-8">
-${data.headHtml}
+<base href="https://ru.wikipedia.org/">
+${data.headHtml.replace(/<script[\s\S]*?<\/script>/gi, "")}
 <style>
   html, body {
     margin: 0;
