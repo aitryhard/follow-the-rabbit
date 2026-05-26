@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import type { ArticleData } from "@/types";
 import Breadcrumb from "./Breadcrumb";
 import Confetti from "./Confetti";
@@ -119,7 +120,13 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
             border-b border-stone-200/80 shrink-0 gap-3 bg-white">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               {data?.isRabbit && (
-                <span className="text-xl shrink-0">🐰</span>
+                <Image
+                  src="/rabbitone.png"
+                  alt="Rabbit"
+                  width={28}
+                  height={28}
+                  className="shrink-0"
+                />
               )}
               <h2 className="text-stone-800 text-[15px] font-medium truncate tracking-tight">
                 {data?.title || "Загрузка..."}
@@ -155,7 +162,13 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
             {error && (
               <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
                 <div className="flex flex-col items-center gap-4 text-center px-6">
-                  <span className="text-3xl opacity-50">🐾</span>
+                  <Image
+                    src="/footprint.svg"
+                    alt="След"
+                    width={40}
+                    height={40}
+                    className="opacity-40"
+                  />
                   <p className="text-stone-500 text-sm">{error}</p>
                   <p className="text-stone-400 text-xs">
                     След потерян. Попробуйте другую тему.

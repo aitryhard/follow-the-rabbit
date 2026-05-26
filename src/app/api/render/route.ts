@@ -59,8 +59,7 @@ function shuffleWithSeed<T>(arr: T[], seed: string): T[] {
 export async function GET(request: NextRequest) {
   const title = request.nextUrl.searchParams.get("title");
   const step = parseInt(request.nextUrl.searchParams.get("step") || "0");
-  // total param received for cache-busting, not used in page rendering
-  void parseInt(request.nextUrl.searchParams.get("total") || "0");
+  const total = parseInt(request.nextUrl.searchParams.get("total") || "0");
   const seed = request.nextUrl.searchParams.get("seed") || "";
 
   if (!title) {
@@ -92,8 +91,14 @@ export async function GET(request: NextRequest) {
       const shuffled = shuffleWithSeed(links, perStepSeed);
       const selected = shuffled.slice(0, 1);
 
+      const progress = total > 0 ? step / total : 0;
+      let proximitySvg = "singlepaw";
+      if (progress >= 0.75) proximitySvg = "noseprofile";
+      else if (progress >= 0.5) proximitySvg = "ears";
+      else if (progress >= 0.25) proximitySvg = "pawspair";
+
       for (const link of selected) {
-        const replacement = `<a href="#" data-rabbit-target="${link.target.replace(/"/g, "&quot;")}" class="rabbit-mark-link" style="color:#b45309!important;cursor:pointer!important;border-bottom:2px dashed rgba(217,119,6,0.6)!important;text-decoration:none!important;background:rgba(255,251,235,0.9)!important;padding:0 2px!important;border-radius:2px!important;font-weight:600!important">${link.text}</a>`;
+        const replacement = `<a href="#" data-rabbit-target="${link.target.replace(/"/g, "&quot;")}" class="rabbit-mark-link" style="color:#b45309!important;cursor:pointer!important;border-bottom:2px dashed rgba(217,119,6,0.6)!important;text-decoration:none!important;background:rgba(255,251,235,0.9)!important;padding:0 2px!important;border-radius:2px!important;font-weight:600!important">${link.text}</a><img src="/${proximitySvg}.svg" alt="" style="display:inline-block;width:18px;height:18px;vertical-align:middle;margin-left:2px;opacity:0.6">`;
         html = html.replace(link.fullMatch, replacement);
       }
     }

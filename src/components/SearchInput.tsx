@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 
 interface SearchResult {
   title: string;
@@ -78,7 +79,14 @@ export default function SearchInput({ onStartTrail }: Props) {
           transition={{ delay: 0.1, duration: 1.2, ease: "easeOut" }}
           className="mb-8"
         >
-          <div className="text-8xl animate-float select-none">🐰</div>
+          <Image
+            src="/rabbitone.png"
+            alt="Rabbit"
+            width={140}
+            height={140}
+            className="animate-float select-none mx-auto"
+            priority
+          />
         </motion.div>
 
         <motion.h1
