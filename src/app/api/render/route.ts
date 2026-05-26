@@ -79,6 +79,10 @@ export async function GET(request: NextRequest) {
 
     let html = await wikiRes.text();
 
+    html = html.replace("<head>", '<head><base href="https://ru.wikipedia.org/">');
+    html = html.replace(/<meta\s+http-equiv="Content-Security-Policy"[^>]*\/?>/gi, "");
+    html = html.replace(/<meta\s+http-equiv="X-Frame-Options"[^>]*\/?>/gi, "");
+
     const isRabbit =
       title === "Rabbit" || title === "Кролик" || title === "Кролики";
 
