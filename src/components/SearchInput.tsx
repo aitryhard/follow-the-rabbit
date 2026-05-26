@@ -10,19 +10,6 @@ interface SearchResult {
   pageid: number;
 }
 
-const RANDOM_STARTERS = [
-  "Квантовая механика",
-  "Древний Рим",
-  "Искусственный интеллект",
-  "The Beatles",
-  "Чёрная дыра",
-  "Возрождение",
-  "ДНК",
-  "Винсент ван Гог",
-  "Шахматы",
-  "Солнечная система",
-];
-
 let debounceTimer: ReturnType<typeof setTimeout>;
 
 interface Props {
@@ -59,10 +46,12 @@ export default function SearchInput({ onStartTrail }: Props) {
     onStartTrail(title);
   };
 
-  const randomStart = () => {
-    const pick =
-      RANDOM_STARTERS[Math.floor(Math.random() * RANDOM_STARTERS.length)];
-    startTrail(pick);
+  const randomStart = async () => {
+    const res = await fetch("/api/random");
+    const data = await res.json();
+    if (data.title) {
+      startTrail(data.title);
+    }
   };
 
   return (

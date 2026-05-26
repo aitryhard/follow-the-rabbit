@@ -26,6 +26,13 @@ function decodeWikiTitle(encoded: string): string {
   return decodeURIComponent(encoded.replace(/_/g, " "));
 }
 
+export async function randomWikipediaTitle(): Promise<string> {
+  const url = `${WIKI_API}?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.query?.random?.[0]?.title || "";
+}
+
 export async function searchWikipedia(
   query: string
 ): Promise<{ title: string; snippet: string; pageid: number }[]> {
