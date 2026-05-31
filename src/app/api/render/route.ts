@@ -15,16 +15,44 @@ export async function GET(request: NextRequest) {
 
   const origin = request.nextUrl.origin;
 
-  try {
-    const wikiRes = await fetch(
-      `${WIKI_BASE}/wiki/${encodeURIComponent(title)}`,
-      { headers: { "User-Agent": "FollowTheRabbit/1.0" } }
-    );
+  const fetchOptions = {
+    headers: {
+      "User-Agent": "FollowTheRabbit/1.0",
+      "Accept-Language": "ru",
+    },
+  };
 
-    if (!wikiRes.ok) {
-      return new NextResponse("Page not found", { status: 404 });
+  let wikiRes: Response | null = null;
+  let lastError = "";
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      wikiRes = await fetch(
+        `${WIKI_BASE}/wiki/${encodeURIComponent(title)}`,
+        fetchOptions
+      );
+      if (wikiRes.ok) break;
+
+      lastError = `Wikipedia ${wikiRes.status}`;
+      if (wikiRes.status === 429) {
+        await new Promise((r) => setTimeout(r, 1000));
+        continue;
+      }
+      break;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : "Сетевая ошибка";
+      if (attempt === 0) await new Promise((r) => setTimeout(r, 500));
     }
+  }
 
+  if (!wikiRes || !wikiRes.ok) {
+    return NextResponse.json(
+      { error: lastError || "Статья не найдена" },
+      { status: wikiRes?.status || 502 }
+    );
+  }
+
+  try {
     let html = await wikiRes.text();
 
     html = html.replace(
