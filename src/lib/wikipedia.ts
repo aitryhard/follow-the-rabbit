@@ -183,3 +183,29 @@ export async function fetchArticleWithMarks(
     totalSteps,
   };
 }
+
+export async function fetchRawArticle(title: string): Promise<{
+  html: string;
+  headHtml: string;
+}> {
+  const url = `${WIKI_API}?action=parse&page=${encodeURIComponent(
+    title
+  )}&prop=text|headhtml&format=json&origin=*`;
+
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error(`Wikipedia ${res.status}`);
+  }
+
+  const data = await res.json();
+
+  if (!data.parse) {
+    throw new Error(`Article not found: ${title}`);
+  }
+
+  return {
+    html: data.parse.text["*"],
+    headHtml: data.parse.headhtml?.["*"] || "",
+  };
+}
