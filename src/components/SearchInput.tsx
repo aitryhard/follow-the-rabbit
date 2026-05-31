@@ -47,10 +47,15 @@ export default function SearchInput({ onStartTrail }: Props) {
   };
 
   const randomStart = async () => {
-    const res = await fetch("/api/random");
-    const data = await res.json();
-    if (data.title) {
-      startTrail(data.title);
+    try {
+      const res = await fetch("/api/random");
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.title) {
+        startTrail(data.title);
+      }
+    } catch {
+      // silently fail, user can retry
     }
   };
 

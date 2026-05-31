@@ -46,9 +46,13 @@ export async function GET(request: NextRequest) {
   }
 
   if (!wikiRes || !wikiRes.ok) {
-    return NextResponse.json(
-      { error: lastError || "Статья не найдена" },
-      { status: wikiRes?.status || 502 }
+    const errMsg = lastError || "Статья не найдена";
+    return new NextResponse(
+      `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px;text-align:center"><p>${errMsg}</p></body></html>`,
+      {
+        status: wikiRes?.status || 502,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      }
     );
   }
 
