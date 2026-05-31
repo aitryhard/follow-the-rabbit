@@ -105,16 +105,6 @@ function seededRandom(seed: string): () => number {
   };
 }
 
-function shuffleWithSeed<T>(arr: T[], seed: string): T[] {
-  const rand = seededRandom(seed);
-  const shuffled = [...arr];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
-
 export async function GET(request: NextRequest) {
   const title = request.nextUrl.searchParams.get("title");
   const step = parseInt(request.nextUrl.searchParams.get("step") || "0");
