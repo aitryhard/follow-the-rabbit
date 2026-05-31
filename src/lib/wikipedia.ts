@@ -2,6 +2,29 @@ import { ArticleData, RabbitMark } from "@/types";
 
 const WIKI_API = "https://ru.wikipedia.org/w/api.php";
 
+const cache = new Map<string, { data: unknown; ts: number }>();
+const CACHE_TTL = 30_000;
+
+async function cachedFetch(url: string): Promise<unknown> {
+  const cached = cache.get(url);
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      cache.set(url, { data, ts: Date.now() });
+      return data;
+    }
+    if (res.status === 429) {
+      await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+      continue;
+    }
+    throw new Error(`Wikipedia ${res.status}`);
+  }
+  throw new Error("Wikipedia 429 rate limit");
+}
+
 const WIKI_LINK_RE =
   /<a\s+(?:[^>]*?\s+)?href="\/wiki\/([^"]+)"(?:\s+[^>]*?)?\s*(?:title="([^"]*)")?[^>]*>/g;
 
@@ -28,8 +51,7 @@ function decodeWikiTitle(encoded: string): string {
 
 export async function randomWikipediaTitle(): Promise<string> {
   const url = `${WIKI_API}?action=query&list=random&rnnamespace=0&rnlimit=1&format=json&origin=*`;
-  const res = await fetch(url);
-  const data = await res.json();
+  const data = (await cachedFetch(url)) as { query?: { random?: { title: string }[] } };
   return data.query?.random?.[0]?.title || "";
 }
 
@@ -40,10 +62,9 @@ export async function searchWikipedia(
     query
   )}&srlimit=10&format=json&origin=*`;
 
-  const res = await fetch(url);
-  const data = await res.json();
+  const data = (await cachedFetch(url)) as { query?: { search?: { title: string; snippet: string; pageid: number }[] } };
 
-  return (data.query?.search || []).map(
+  return ((data as { query?: { search?: { title: string; snippet: string; pageid: number }[] } }).query?.search || []).map(
     (r: { title: string; snippet: string; pageid: number }) => ({
       title: r.title,
       snippet: r.snippet.replace(/<\/?[^>]+(>|$)/g, ""),
@@ -129,20 +150,16 @@ export async function fetchArticleWithMarks(
     title
   )}&prop=text|headhtml&format=json&origin=*`;
 
-  const res = await fetch(url);
-
-  if (!res.ok) {
-    throw new Error(`Wikipedia ${res.status}`);
-  }
-
-  const data = await res.json();
+  const data = (await cachedFetch(url)) as {
+    parse?: { text?: { "*"?: string }; headhtml?: { "*"?: string } };
+  };
 
   if (!data.parse) {
     throw new Error(`Article not found: ${title}`);
   }
 
   const headHtml: string = data.parse.headhtml?.["*"] || "";
-  let html: string = data.parse.text["*"];
+  let html: string = data.parse.text?.["*"] || "";
   const rabbitMarks: RabbitMark[] = [];
 
   if (!isRabbit) {
@@ -192,20 +209,16 @@ export async function fetchRawArticle(title: string): Promise<{
     title
   )}&prop=text|headhtml&format=json&origin=*`;
 
-  const res = await fetch(url);
-
-  if (!res.ok) {
-    throw new Error(`Wikipedia ${res.status}`);
-  }
-
-  const data = await res.json();
+  const data = (await cachedFetch(url)) as {
+    parse?: { text?: { "*"?: string }; headhtml?: { "*"?: string } };
+  };
 
   if (!data.parse) {
     throw new Error(`Article not found: ${title}`);
   }
 
   return {
-    html: data.parse.text["*"],
+    html: data.parse.text?.["*"] || "",
     headHtml: data.parse.headhtml?.["*"] || "",
   };
 }
