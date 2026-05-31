@@ -11,6 +11,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
 
-  const data = await fetchArticleWithMarks(title, step, total, seed);
-  return NextResponse.json(data);
+  try {
+    const data = await fetchArticleWithMarks(title, step, total, seed);
+    return NextResponse.json(data);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Не удалось загрузить" },
+      { status: 502 }
+    );
+  }
 }

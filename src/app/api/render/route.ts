@@ -2,6 +2,46 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractLinks, weightedPick, seededRandom } from "@/lib/render-logic";
 
 const WIKI_BASE = "https://ru.wikipedia.org";
+const TIMEOUT_MS = 12000;
+const MAX_ATTEMPTS = 3;
+
+async function fetchWithRetry(url: string): Promise<Response> {
+  let lastError = "";
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": "FollowTheRabbit/1.0",
+          "Accept-Language": "ru",
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+
+      if (res.ok) return res;
+
+      lastError = `Wikipedia ${res.status}`;
+      if (res.status === 404) break;
+      if (res.status === 429) {
+        await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+        continue;
+      }
+    } catch (err) {
+      clearTimeout(timer);
+      lastError = err instanceof Error ? err.message : "Сетевая ошибка";
+    }
+
+    if (attempt < MAX_ATTEMPTS - 1) {
+      await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+    }
+  }
+
+  throw new Error(lastError);
+}
 
 export async function GET(request: NextRequest) {
   const title = request.nextUrl.searchParams.get("title");
@@ -15,48 +55,11 @@ export async function GET(request: NextRequest) {
 
   const origin = request.nextUrl.origin;
 
-  const fetchOptions = {
-    headers: {
-      "User-Agent": "FollowTheRabbit/1.0",
-      "Accept-Language": "ru",
-    },
-  };
-
-  let wikiRes: Response | null = null;
-  let lastError = "";
-
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      wikiRes = await fetch(
-        `${WIKI_BASE}/wiki/${encodeURIComponent(title)}`,
-        fetchOptions
-      );
-      if (wikiRes.ok) break;
-
-      lastError = `Wikipedia ${wikiRes.status}`;
-      if (wikiRes.status === 429) {
-        await new Promise((r) => setTimeout(r, 1000));
-        continue;
-      }
-      break;
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : "Сетевая ошибка";
-      if (attempt === 0) await new Promise((r) => setTimeout(r, 500));
-    }
-  }
-
-  if (!wikiRes || !wikiRes.ok) {
-    const errMsg = lastError || "Статья не найдена";
-    return new NextResponse(
-      `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px;text-align:center"><p>${errMsg}</p></body></html>`,
-      {
-        status: wikiRes?.status || 502,
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      }
-    );
-  }
-
   try {
+    const wikiRes = await fetchWithRetry(
+      `${WIKI_BASE}/wiki/${encodeURIComponent(title)}`
+    );
+
     let html = await wikiRes.text();
 
     html = html.replace(
@@ -152,7 +155,15 @@ document.addEventListener('click',function(e){
         "Cache-Control": "no-cache",
       },
     });
-  } catch {
-    return new NextResponse("Failed to load", { status: 500 });
+  } catch (err) {
+    const msg =
+      err instanceof Error ? err.message : "Не удалось загрузить";
+    return new NextResponse(
+      `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:40px;text-align:center;color:#555"><p>${msg}</p><p style="font-size:14px">Попробуйте кнопку «Повторить»</p></body></html>`,
+      {
+        status: 502,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      }
+    );
   }
 }
