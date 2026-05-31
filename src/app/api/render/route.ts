@@ -2,45 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractLinks, weightedPick, seededRandom } from "@/lib/render-logic";
 
 const WIKI_BASE = "https://ru.wikipedia.org";
-const TIMEOUT_MS = 12000;
-const MAX_ATTEMPTS = 3;
 
-async function fetchWithRetry(url: string): Promise<Response> {
-  let lastError = "";
+async function fetchPage(title: string): Promise<string> {
+  const url = `${WIKI_BASE}/wiki/${encodeURIComponent(title)}`;
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "FollowTheRabbit/1.0",
+      "Accept-Language": "ru",
+    },
+  });
 
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    try {
-      const res = await fetch(url, {
-        headers: {
-          "User-Agent": "FollowTheRabbit/1.0",
-          "Accept-Language": "ru",
-        },
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-
-      if (res.ok) return res;
-
-      lastError = `Wikipedia ${res.status}`;
-      if (res.status === 404) break;
-      if (res.status === 429) {
-        await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
-        continue;
-      }
-    } catch (err) {
-      clearTimeout(timer);
-      lastError = err instanceof Error ? err.message : "Сетевая ошибка";
-    }
-
-    if (attempt < MAX_ATTEMPTS - 1) {
-      await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
-    }
+  if (!res.ok) {
+    throw new Error(`Wikipedia ${res.status}`);
   }
 
-  throw new Error(lastError);
+  return res.text();
 }
 
 export async function GET(request: NextRequest) {
@@ -56,11 +32,7 @@ export async function GET(request: NextRequest) {
   const origin = request.nextUrl.origin;
 
   try {
-    const wikiRes = await fetchWithRetry(
-      `${WIKI_BASE}/wiki/${encodeURIComponent(title)}`
-    );
-
-    let html = await wikiRes.text();
+    let html = await fetchPage(title);
 
     html = html.replace(
       "<head>",
@@ -87,7 +59,6 @@ export async function GET(request: NextRequest) {
       let selected: { fullMatch: string; target: string; text: string }[];
 
       if (step > total) {
-        // Penultimate step: find word "кролик" in article naturally
         const rabbitWords = /кролик|крольч|заяц|зайц|крол|rabbit/i;
         const directLink = links.find((l) => rabbitWords.test(l.text));
         if (directLink) {
@@ -97,7 +68,6 @@ export async function GET(request: NextRequest) {
           if (anyRabbit) {
             selected = [{ ...anyRabbit, target: "Кролик" }];
           } else {
-            // Fallback: inject marker at end of content
             const markerBlock = `<p style="text-align:center;margin:2em 0;font-size:1.15em"><a href="#" data-rabbit-target="Кролик" class="rabbit-mark-link" style="color:#ea580c!important;cursor:pointer!important;border-bottom:3px solid rgba(234,88,12,0.7)!important;text-decoration:none!important;background:rgba(255,237,213,0.95)!important;padding:2px 6px!important;border-radius:4px!important;font-weight:700!important;box-shadow:0 0 8px rgba(234,88,12,0.4)!important;font-size:1.1em!important">Кролик</a><img src="${origin}/fullrabbit.svg" alt="" style="display:inline-block;width:42px;height:42px;vertical-align:middle;margin-left:6px"></p>`;
             html = html.replace("</body>", `${markerBlock}</body>`);
             selected = [];
