@@ -87,19 +87,10 @@ export async function GET(request: NextRequest) {
       let selected: { fullMatch: string; target: string; text: string }[];
 
       if (step > total) {
-        const rabbitWords = /кролик|крольч|заяц|зайц|крол|rabbit/i;
-        const directLink = links.find((l) => rabbitWords.test(l.text));
-        if (directLink) {
-          selected = [{ ...directLink, target: "Кролик" }];
-        } else {
-          const anyRabbit = links.find((l) => rabbitWords.test(l.target));
-          if (anyRabbit) {
-            selected = [{ ...anyRabbit, target: "Кролик" }];
-          } else {
-            const nearLink = weightedPick(links, rand, 10);
-            selected = [{ ...nearLink, target: "Кролик" }];
-          }
-        }
+        // Penultimate step: inject a visible "Кролик" marker at the end of content
+        const markerBlock = `<p style="text-align:center;margin:2em 0;font-size:1.15em"><a href="#" data-rabbit-target="Кролик" class="rabbit-mark-link" style="color:#ea580c!important;cursor:pointer!important;border-bottom:3px solid rgba(234,88,12,0.7)!important;text-decoration:none!important;background:rgba(255,237,213,0.95)!important;padding:2px 6px!important;border-radius:4px!important;font-weight:700!important;box-shadow:0 0 8px rgba(234,88,12,0.4)!important;font-size:1.1em!important">Кролик</a><img src="${origin}/fullrabbit.svg" alt="" style="display:inline-block;width:42px;height:42px;vertical-align:middle;margin-left:6px"></p>`;
+        html = html.replace("</body>", `${markerBlock}</body>`);
+        selected = []; // skip link replacement, we injected our own
       } else {
         const bias = Math.pow(progress, 2.5) * 8;
         const pick = weightedPick(links, rand, bias);
@@ -136,13 +127,6 @@ document.addEventListener('click',function(e){
     e.preventDefault();
     var t=link.getAttribute('data-rabbit-target');
     if(t) window.parent.postMessage({type:'rabbit-hop',target:t},'*');
-    return;
-  }
-  var a=e.target.closest('a[href^="/wiki/"]');
-  if(a){
-    e.preventDefault();
-    var h=a.getAttribute('href').replace('/wiki/','').replace(/#.*$/,'');
-    window.parent.postMessage({type:'rabbit-hop',target:decodeURIComponent(h)},'*');
   }
 });
 </script>`;
