@@ -171,8 +171,33 @@ export default function TrailPanel({ title: initialTitle, onClose }: Props) {
                   />
                   <p className="text-stone-500 text-sm">{error}</p>
                   <p className="text-stone-400 text-xs">
-                    След потерян. Попробуйте другую тему.
+                    След потерян.
                   </p>
+                  <div className="flex gap-3">
+                    {trail.length > 1 && (
+                      <button
+                        onClick={() => {
+                          const prevIdx = trail.length - 2;
+                          goBackTo(prevIdx);
+                        }}
+                        className="px-4 py-1.5 text-sm rounded-full border border-stone-300
+                          text-stone-500 hover:bg-stone-100 transition-colors"
+                      >
+                        ← Назад
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (trail.length > 0) {
+                          fetchArticle(trail[trail.length - 1], data?.currentStep || trail.length);
+                        }
+                      }}
+                      className="px-4 py-1.5 text-sm rounded-full border border-stone-300
+                        text-stone-600 hover:bg-stone-100 transition-colors"
+                    >
+                      Повторить
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

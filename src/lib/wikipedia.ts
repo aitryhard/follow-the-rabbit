@@ -129,7 +129,20 @@ export async function fetchArticleWithMarks(
     title
   )}&prop=text|headhtml&format=json&origin=*`;
 
-  const res = await fetch(url);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!res.ok) {
+    throw new Error(`Wikipedia ${res.status}`);
+  }
+
   const data = await res.json();
 
   if (!data.parse) {
