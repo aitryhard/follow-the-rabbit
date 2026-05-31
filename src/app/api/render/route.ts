@@ -81,6 +81,7 @@ export async function GET(request: NextRequest) {
 <head>
 <meta charset="UTF-8">
 <base href="https://ru.wikipedia.org/">
+<link rel="stylesheet" href="/w/load.php?lang=ru&amp;modules=mediawiki.skinning.content.parsoid%7Cmediawiki.skinning.interface%7Cskins.vector.styles%7Csite.styles&amp;only=styles">
 ${headContent}
 <style>
   html, body { margin:0; padding:0; background:#fff; }
