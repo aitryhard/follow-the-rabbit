@@ -2,6 +2,46 @@ import { NextRequest, NextResponse } from "next/server";
 
 const WIKI_BASE = "https://ru.wikipedia.org";
 
+const RABBIT_KEYWORDS = [
+  "животн", "млекопитающ", "звер", "природ", "лес", "нор", "ух", "уши", "хвост",
+  "морков", "заяц", "зайц", "кролик", "трав", "пол", "грызун", "питом", "домашн",
+  "фаун", "биолог", "зоолог", "вид", "род", "семейств", "отряд", "класс",
+  "эколог", "луг", "степ", "сад", "огород", "корм", "шерст", "мех", "лап",
+  "прыг", "скач", "бег", "млекопит", "травояд", "дик", "пушист", "зверёк",
+  "питомец", "клетк", "вольер", "размнож", "детёныш", "потомств", "охота",
+];
+
+function scoreLink(text: string, target: string): number {
+  const lower = (text + " " + target).toLowerCase();
+  let score = 0;
+  for (const kw of RABBIT_KEYWORDS) {
+    if (lower.includes(kw)) score += 1;
+  }
+  return score;
+}
+
+function weightedPick<T extends { text: string; target: string }>(
+  items: T[],
+  rand: () => number,
+  bias: number
+): T {
+  if (items.length === 0) throw new Error("No items");
+  if (bias <= 0) return items[Math.floor(rand() * items.length)];
+
+  const scored = items.map((item) => ({
+    item,
+    weight: 1 + scoreLink(item.text, item.target) * bias,
+  }));
+
+  const totalWeight = scored.reduce((s, x) => s + x.weight, 0);
+  let r = rand() * totalWeight;
+  for (const { item, weight } of scored) {
+    r -= weight;
+    if (r <= 0) return item;
+  }
+  return scored[scored.length - 1].item;
+}
+
 function extractLinks(html: string): { fullMatch: string; target: string; text: string }[] {
   const nonContentStart = findNonContentStart(html);
   const links: { fullMatch: string; target: string; text: string }[] = [];
@@ -109,10 +149,13 @@ export async function GET(request: NextRequest) {
     if (!isRabbit) {
       const links = extractLinks(html);
       const perStepSeed = `${seed}-${step}`;
-      const shuffled = shuffleWithSeed(links, perStepSeed);
-      const selected = shuffled.slice(0, 1);
-
+      const rand = seededRandom(perStepSeed);
       const progress = total > 0 ? step / total : 0;
+
+      // bias grows from 0 (random) to 8 (heavily toward rabbit topics)
+      const bias = Math.pow(progress, 2.5) * 8;
+      const pick = weightedPick(links, rand, bias);
+      const selected = [pick];
       let proximitySvg = "singlepaw";
       if (step > total) proximitySvg = "fullrabbit";
       else if (progress >= 0.85) proximitySvg = "noseprofile";
