@@ -1,109 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { extractLinks, weightedPick, seededRandom } from "@/lib/render-logic";
 
 const WIKI_BASE = "https://ru.wikipedia.org";
-
-const RABBIT_KEYWORDS = [
-  "животн", "млекопитающ", "звер", "природ", "лес", "нор", "ух", "уши", "хвост",
-  "морков", "заяц", "зайц", "кролик", "трав", "пол", "грызун", "питом", "домашн",
-  "фаун", "биолог", "зоолог", "вид", "род", "семейств", "отряд", "класс",
-  "эколог", "луг", "степ", "сад", "огород", "корм", "шерст", "мех", "лап",
-  "прыг", "скач", "бег", "млекопит", "травояд", "дик", "пушист", "зверёк",
-  "питомец", "клетк", "вольер", "размнож", "детёныш", "потомств", "охота",
-];
-
-function scoreLink(text: string, target: string): number {
-  const lower = (text + " " + target).toLowerCase();
-  let score = 0;
-  for (const kw of RABBIT_KEYWORDS) {
-    if (lower.includes(kw)) score += 1;
-  }
-  return score;
-}
-
-function weightedPick<T extends { text: string; target: string }>(
-  items: T[],
-  rand: () => number,
-  bias: number
-): T {
-  if (items.length === 0) throw new Error("No items");
-  if (bias <= 0) return items[Math.floor(rand() * items.length)];
-
-  const scored = items.map((item) => ({
-    item,
-    weight: 1 + scoreLink(item.text, item.target) * bias,
-  }));
-
-  const totalWeight = scored.reduce((s, x) => s + x.weight, 0);
-  let r = rand() * totalWeight;
-  for (const { item, weight } of scored) {
-    r -= weight;
-    if (r <= 0) return item;
-  }
-  return scored[scored.length - 1].item;
-}
-
-function extractLinks(html: string): { fullMatch: string; target: string; text: string }[] {
-  const nonContentStart = findNonContentStart(html);
-  const links: { fullMatch: string; target: string; text: string }[] = [];
-  const regex = /<a\s+(?:[^>]*?\s+)?href="(?:\/\/[^"]*wikipedia\.org)?\/wiki\/([^"#]+)[^"]*"(?:\s+[^>]*?)?\s*(?:title="([^"]*)")?[^>]*>([^<]+)<\/a>/gi;
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(html)) !== null) {
-    if (nonContentStart > 0 && match.index >= nonContentStart) continue;
-
-    const fullMatch = match[0];
-    const target = decodeURIComponent(match[1].replace(/_/g, " "));
-    const text = match[3].trim();
-
-    const excluded = /^(Special|Wikipedia|Help|File|Talk|Category|Template|Portal|User|Служебная|Википедия|Справка|Файл|Обсуждение|Категория|Шаблон|Портал|Участник|Модуль|Module|MediaWiki|Media|Image):/i;
-    if (
-      text.length < 2 ||
-      excluded.test(target) ||
-      target === "Main Page" ||
-      target === "Заглавная страница"
-    ) {
-      continue;
-    }
-
-    links.push({ fullMatch, target, text });
-  }
-
-  return links;
-}
-
-function findNonContentStart(html: string): number {
-  const contentAnchor = html.search(/id="mw-content-text"/i);
-  const searchFrom = contentAnchor >= 0 ? contentAnchor : 0;
-
-  const markers = [
-    /<div[^>]*\bclass="[^"]*catlinks[^"]*"[^>]*>/i,
-    /<div[^>]*\bclass="[^"]*navbox[^"]*"[^>]*>/i,
-    /<div[^>]*\bclass="[^"]*authority-control[^"]*"[^>]*>/i,
-    /<div[^>]*\bid="catlinks"[^>]*>/i,
-  ];
-  let earliest = html.length;
-  for (const m of markers) {
-    const slice = html.slice(searchFrom);
-    const match = slice.match(m);
-    if (match && match.index !== undefined) {
-      const idx = searchFrom + match.index;
-      if (idx < earliest) earliest = idx;
-    }
-  }
-  return earliest;
-}
-
-function seededRandom(seed: string): () => number {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) {
-    h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
-  }
-  let s = h >>> 0;
-  return () => {
-    s = (s * 1664525 + 1013904223) | 0;
-    return (s >>> 0) / 4294967296;
-  };
-}
 
 export async function GET(request: NextRequest) {
   const title = request.nextUrl.searchParams.get("title");
@@ -129,9 +27,18 @@ export async function GET(request: NextRequest) {
 
     let html = await wikiRes.text();
 
-    html = html.replace("<head>", '<head><base href="https://ru.wikipedia.org/">');
-    html = html.replace(/<meta\s+http-equiv="Content-Security-Policy"[^>]*\/?>/gi, "");
-    html = html.replace(/<meta\s+http-equiv="X-Frame-Options"[^>]*\/?>/gi, "");
+    html = html.replace(
+      "<head>",
+      '<head><base href="https://ru.wikipedia.org/">'
+    );
+    html = html.replace(
+      /<meta\s+http-equiv="Content-Security-Policy"[^>]*\/?>/gi,
+      ""
+    );
+    html = html.replace(
+      /<meta\s+http-equiv="X-Frame-Options"[^>]*\/?>/gi,
+      ""
+    );
 
     const isRabbit =
       title === "Rabbit" || title === "Кролик" || title === "Кролики";
@@ -142,10 +49,28 @@ export async function GET(request: NextRequest) {
       const rand = seededRandom(perStepSeed);
       const progress = total > 0 ? step / total : 0;
 
-      // bias grows from 0 (random) to 8 (heavily toward rabbit topics)
-      const bias = Math.pow(progress, 2.5) * 8;
-      const pick = weightedPick(links, rand, bias);
-      const selected = [pick];
+      let selected: { fullMatch: string; target: string; text: string }[];
+
+      if (step > total) {
+        const rabbitWords = /кролик|крольч|заяц|зайц|крол|rabbit/i;
+        const directLink = links.find((l) => rabbitWords.test(l.text));
+        if (directLink) {
+          selected = [{ ...directLink, target: "Кролик" }];
+        } else {
+          const anyRabbit = links.find((l) => rabbitWords.test(l.target));
+          if (anyRabbit) {
+            selected = [{ ...anyRabbit, target: "Кролик" }];
+          } else {
+            const nearLink = weightedPick(links, rand, 10);
+            selected = [{ ...nearLink, target: "Кролик" }];
+          }
+        }
+      } else {
+        const bias = Math.pow(progress, 2.5) * 8;
+        const pick = weightedPick(links, rand, bias);
+        selected = [pick];
+      }
+
       let proximitySvg = "singlepaw";
       if (step > total) proximitySvg = "fullrabbit";
       else if (progress >= 0.85) proximitySvg = "noseprofile";
@@ -154,12 +79,17 @@ export async function GET(request: NextRequest) {
       else if (progress >= 0.2) proximitySvg = "pawspair";
 
       const iconSize =
-        proximitySvg === "fullrabbit" ? "42px" :
-        proximitySvg === "pawspair" ? "48px" :
-        "32px";
+        proximitySvg === "fullrabbit"
+          ? "42px"
+          : proximitySvg === "pawspair"
+            ? "48px"
+            : "32px";
 
       for (const link of selected) {
-        const replacement = `<a href="#" data-rabbit-target="${link.target.replace(/"/g, "&quot;")}" class="rabbit-mark-link" style="color:#ea580c!important;cursor:pointer!important;border-bottom:3px solid rgba(234,88,12,0.7)!important;text-decoration:none!important;background:rgba(255,237,213,0.95)!important;padding:1px 3px!important;border-radius:3px!important;font-weight:700!important;box-shadow:0 0 6px rgba(234,88,12,0.3)!important">${link.text}</a><img src="${origin}/${proximitySvg}.svg" alt="" style="display:inline-block;width:${iconSize};height:${iconSize};vertical-align:middle;margin-left:3px">`;
+        const replacement = `<a href="#" data-rabbit-target="${link.target.replace(
+          /"/g,
+          "&quot;"
+        )}" class="rabbit-mark-link" style="color:#ea580c!important;cursor:pointer!important;border-bottom:3px solid rgba(234,88,12,0.7)!important;text-decoration:none!important;background:rgba(255,237,213,0.95)!important;padding:1px 3px!important;border-radius:3px!important;font-weight:700!important;box-shadow:0 0 6px rgba(234,88,12,0.3)!important">${link.text}</a><img src="${origin}/${proximitySvg}.svg" alt="" style="display:inline-block;width:${iconSize};height:${iconSize};vertical-align:middle;margin-left:3px">`;
         html = html.replace(link.fullMatch, replacement);
       }
     }
